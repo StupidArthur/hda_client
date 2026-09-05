@@ -1,0 +1,29 @@
+# HDA 全能力测试组态：sqlite 持久化 + 聚合历史 + 事件历史
+server: "0.0.0.0"
+port: 48622
+cycle: 500
+namespace_index: 1
+history:
+  storage: sqlite          # memory(默认) | sqlite | none
+  db_file: data/history.db # sqlite 数据库文件(相对执行目录)
+  period: 7d               # 历史保留周期: 30m/24h/7d/1w
+  count: 0                 # 每节点最多记录条数, 0=不限
+  aggregates: true         # 启用聚合历史(Average/Minimum/Maximum/Count/TimeAverage)
+  events:
+    period_ms: 3000        # 每 3 秒产生一条模拟事件(不配则无事件历史)
+    message: "HDA demo event"
+    severity: 500
+nodes:
+  - name: hda_change_
+    type: Double
+    count: 1
+    change: true
+    writable: false
+    history: true
+  - name: hda_static_
+    type: Int32
+    count: 1
+    change: false
+    writable: true
+    default: 42
+    history: true

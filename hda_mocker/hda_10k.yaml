@@ -1,0 +1,17 @@
+# HDA Mocker: 1 万位号 M0000~M9999.VALUE, 惰性确定性秒级历史(任意窗口可查)
+server: "0.0.0.0"
+port: 48630
+cycle: 1000
+namespace_index: 1
+history:
+  storage: lazy           # 惰性确定性生成, 无需真实存储
+  aggregates: true        # 聚合历史(Average/Min/Max/Count/TimeAverage)
+nodes:
+  - name_format: "M{idx:04d}.VALUE"
+    idx_start: 0
+    type: Double
+    count: 10000
+    change: false
+    writable: false
+    default: 0.0
+    history: true

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.pyc
+*.log
+*.pid
+
+# 证书私钥与受信目录(安全, 用 gen_certs.py 重新生成)
+hda_mocker/certs/
+
+# SQLite 历史数据
+hda_mocker/data/
+
+# Go 构建产物
+hda_client/build/
+gohda/hda.exe
+hda_client/hda.exe
+*.exe
+
+# 前端依赖与构建
+hda_client/frontend/node_modules/
+hda_client/frontend/dist/
+
+# 临时
+.DS_Store

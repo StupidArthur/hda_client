@@ -1,0 +1,19 @@
+# HDA 测试组态：两个 history=true 节点供 HDA 客户端读取历史
+server: "0.0.0.0"
+port: 48621
+cycle: 500
+namespace_index: 1
+nodes:
+  - name: hda_change_
+    type: Double
+    count: 1
+    change: true
+    writable: false
+    history: true
+  - name: hda_static_
+    type: Int32
+    count: 1
+    change: false
+    writable: true
+    default: 42
+    history: true
