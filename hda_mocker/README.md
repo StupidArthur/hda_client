@@ -124,14 +124,16 @@ python hda_client.py --url opc.tcp://127.0.0.1:48630/ua_mocker/ --no-security --
 
 GUI 工具 `../hda_client/`（Wails + Go）可直接连本服务器做交互式查询与导出。
 
-## 6. X.509 认证（可选）
+## 6. X.509 认证（可选，独立功能目录 ../x509/）
+
+X.509 证书认证是独立功能（证书生成、客户端证书使用见 `../x509/`），本服务器通过组态启用：
 
 ```bash
-python gen_certs.py        # 生成 CA/服务端/客户端证书到 certs/
-python main.py config_x509.yaml
+python ../x509/gen_certs.py      # 在 ../x509/ 生成 CA/服务端/客户端证书
+python main.py config_x509.yaml   # 用 X.509 认证启动
 ```
 
-给客户端：`certs/client_cert.pem` + `client_key.pem`（身份）+ `server_cert.pem`（信任）。绝不外发 `server_key.pem`、`ca_key.pem`。详见 `CLIENT_README.md`。
+给客户端：`../x509/certs/client_cert.pem` + `client_key.pem`（身份）+ `server_cert.pem`（信任）。绝不外发 `server_key.pem`、`ca_key.pem`。详见 `../x509/CLIENT_README.md`。
 
 ## 7. 文件清单
 
@@ -143,9 +145,8 @@ python main.py config_x509.yaml
 | `log_util.py` | 日志（`ua_mocker_YYYYMMDD.log`） |
 | `hda_support.py` | HdaHistoryManager：聚合历史实现 |
 | `lazy_history.py` | 惰性秒级历史存储（1 万位号数据源） |
-| `gen_certs.py` / `gen_client_cert.py` | 证书生成 |
 | `hda_client.py` | 命令行 HDA 客户端（验证用） |
 | `bench_*.py` | 并发/耗时基准脚本 |
-| `certs/` | 证书目录（含 `trust/` 受信目录） |
+| `config_x509.yaml` | X.509 认证启动配置（证书工具在 `../x509/`） |
 | `data/` | SQLite 历史库（`history.storage: sqlite` 时） |
 

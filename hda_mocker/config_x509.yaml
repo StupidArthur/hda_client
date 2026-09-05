@@ -178,6 +178,6 @@ nodes:
 # X.509 证书认证配置（可选项：不配置则无安全连接）
 security_policy:
   - "Basic256Sha256_SignAndEncrypt"
-cert: "certs/server_cert.pem"
-private_key: "certs/server_key.pem"
-trust_store: "certs/trust"
+cert: "../x509/certs/server_cert.pem"
+private_key: "../x509/certs/server_key.pem"
+trust_store: "../x509/certs/trust"

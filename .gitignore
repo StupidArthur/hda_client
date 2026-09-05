@@ -4,8 +4,8 @@ __pycache__/
 *.log
 *.pid
 
-# 证书私钥与受信目录(安全, 用 gen_certs.py 重新生成)
-hda_mocker/certs/
+# 证书私钥(安全, 不入库); 公钥证书与 trust 目录正常入库
+x509/certs/*_key.pem
 
 # SQLite 历史数据
 hda_mocker/data/
