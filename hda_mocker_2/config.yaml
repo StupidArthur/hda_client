@@ -1,0 +1,12 @@
+server:
+  host: 0.0.0.0
+  port: 48630
+  namespace_uri: urn:hda-mocker-2
+
+history:
+  interval: 1s
+  duration: 24h
+  default_hda_length: 7d
+  num_values_per_node: 1200
+
+preset_nodes: preset_nodes.yaml

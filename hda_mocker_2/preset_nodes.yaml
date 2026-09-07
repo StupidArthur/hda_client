@@ -1,0 +1,28 @@
+# Mocker 固定提供四类内置位号，这里只开放规模和坏质量周期。
+#
+# 1. 类型节点：覆盖全部受支持类型，每组为每种类型创建一个只读点和一个可写点。
+#    NodeID: inter_{type}_r_{index:04d} / inter_{type}_w_{index:04d}
+#    默认值固定为非零值。
+# 2. 动态节点：Double、只读、每秒变化的 1~100 锯齿波。
+#    NodeID: dynamic_{index:04d}
+# 3. 稳态节点：Double、可写、固定非零初值。
+#    NodeID: static_{index:04d}
+# 4. 坏实时节点：Double、只读、1~100 锯齿波；历史始终 Good，实时阶段性 BadNoCommunication。
+#    NodeID: bad_realtime_{index:04d}
+#
+# Good 对应 DA/HDA 质量码 192 (0xC0)，通讯中断对应 24 (0x18)。
+# OPC UA 线上分别使用 Good 与 BadNoCommunication StatusCode。
+
+type_nodes:
+  groups: 2
+
+dynamic_nodes:
+  count: 1000
+
+static_nodes:
+  count: 1000
+
+bad_realtime_nodes:
+  count: 1000
+  good_duration: 9m
+  bad_duration: 1m
