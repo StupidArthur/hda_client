@@ -1,7 +1,11 @@
 import unittest
+from datetime import datetime, timedelta, timezone
+
+from asyncua import ua
 
 from config import parse_duration
-from model import build_specs, realtime_is_bad, sawtooth
+from model import build_specs, realtime_is_bad, sawtooth, sawtooth_stats
+from history import VirtualHistoryStorage
 
 
 class MockerTests(unittest.TestCase):
@@ -13,6 +17,14 @@ class MockerTests(unittest.TestCase):
         self.assertTrue(realtime_is_bad(540, 540, 60))
         self.assertFalse(realtime_is_bad(600, 540, 60))
 
+    def test_sawtooth_stats(self):
+        values = [sawtooth(i) for i in range(37, 237)]
+        count, total, minimum, maximum = sawtooth_stats(37, 236)
+        self.assertEqual(count, len(values))
+        self.assertEqual(total, sum(values))
+        self.assertEqual(minimum, min(values))
+        self.assertEqual(maximum, max(values))
+
     def test_node_counts(self):
         specs = build_specs(2, 1000, 1000, 1000)
         self.assertEqual(len(specs), 13 * 2 * 2 + 3000)
@@ -21,6 +33,19 @@ class MockerTests(unittest.TestCase):
     def test_duration(self):
         self.assertEqual(parse_duration("24h"), 86400)
         self.assertEqual(parse_duration("7d"), 604800)
+
+    def test_direct_aggregate(self):
+        spec = build_specs(0, 1, 0, 0)
+        storage = VirtualHistoryStorage(spec, 604800, 86400, 1200)
+        end = datetime.now(timezone.utc).replace(microsecond=0)
+        values = storage.aggregate(
+            ua.NodeId("dynamic_0001", 2),
+            end - timedelta(minutes=5),
+            end,
+            60000.0,
+            ua.ObjectIds.AggregateFunction_Average,
+        )
+        self.assertEqual(len(values), 6)
 
 
 if __name__ == "__main__":

@@ -7,7 +7,7 @@ from asyncua import Server, ua
 
 from config import Settings
 from history import AggregateHistoryManager, VirtualHistoryStorage
-from model import NodeSpec, build_specs, realtime_is_bad, sawtooth
+from model import NodeSpec, build_specs, realtime_is_bad, value_at
 
 
 async def run(settings: Settings) -> None:
@@ -34,7 +34,6 @@ async def run(settings: Settings) -> None:
         "bad_realtime": await root.add_object(namespace, "BadRealtimeNodes"),
     }
 
-    nodes: dict[str, tuple[NodeSpec, object]] = {}
     for spec in specs:
         if spec.node_id.startswith("inter_"):
             group = "type"
@@ -52,32 +51,25 @@ async def run(settings: Settings) -> None:
         if spec.writable:
             await node.set_writable()
         await server.historize_node_data_change(node)
-        nodes[spec.node_id] = (spec, node)
-
-    async def update_realtime() -> None:
-        while True:
-            now = datetime.now(timezone.utc)
-            timestamp = now.timestamp()
-            bad = realtime_is_bad(timestamp, settings.good_duration, settings.bad_duration)
-            for spec, node in nodes.values():
-                if spec.mode not in {"sawtooth", "bad_realtime"}:
-                    continue
-                status = ua.StatusCodes.BadNoCommunication if spec.mode == "bad_realtime" and bad else ua.StatusCodes.Good
-                dv = ua.DataValue(
-                    ua.Variant(sawtooth(timestamp), ua.VariantType.Double),
+        if spec.mode in {"sawtooth", "bad_realtime"}:
+            # Read-time calculation avoids walking and rewriting thousands of nodes every second.
+            def current_value(_node_id, _attribute, spec=spec):
+                now = datetime.now(timezone.utc)
+                status = ua.StatusCodes.Good
+                if spec.mode == "bad_realtime" and realtime_is_bad(
+                    now.timestamp(), settings.good_duration, settings.bad_duration
+                ):
+                    status = ua.StatusCodes.BadNoCommunication
+                return ua.DataValue(
+                    ua.Variant(value_at(spec, now.timestamp()), spec.data_type),
                     StatusCode=ua.StatusCode(status),
                     SourceTimestamp=now,
                 )
-                await server.write_attribute_value(node.nodeid, dv)
-            await asyncio.sleep(settings.interval)
+
+            server.set_attribute_value_callback(node.nodeid, current_value)
 
     print(f"HDA Mocker: opc.tcp://{settings.host}:{settings.port}/hda-mocker/")
     print(f"Namespace: ns={namespace} ({settings.namespace_uri})")
     print(f"Nodes: {len(specs)}; history={settings.history_length}s; page={settings.page_size}")
     async with server:
-        task = asyncio.create_task(update_realtime())
-        try:
-            await asyncio.Event().wait()
-        finally:
-            task.cancel()
-            await asyncio.gather(task, return_exceptions=True)
+        await asyncio.Event().wait()

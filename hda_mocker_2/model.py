@@ -38,6 +38,23 @@ def sawtooth(timestamp: float) -> float:
     return float(int(timestamp) % 100 + 1)
 
 
+def sawtooth_stats(first: int, last: int) -> tuple[int, float, float, float]:
+    """Return count, sum, minimum and maximum for inclusive epoch seconds."""
+    if last < first:
+        return 0, 0.0, 0.0, 0.0
+
+    def prefix(seconds: int) -> int:
+        cycles, remainder = divmod(seconds, 100)
+        return cycles * 5050 + remainder * (remainder + 1) // 2
+
+    count = last - first + 1
+    total = float(prefix(last + 1) - prefix(first))
+    if count >= 100:
+        return count, total, 1.0, 100.0
+    values = [float(ts % 100 + 1) for ts in range(first, last + 1)]
+    return count, total, min(values), max(values)
+
+
 def build_specs(type_groups: int, dynamic_count: int, static_count: int, bad_count: int) -> list[NodeSpec]:
     specs: list[NodeSpec] = []
     for type_name, (variant_type, default) in TYPE_DEFAULTS.items():

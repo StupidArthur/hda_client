@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from statistics import fmean
-
 from asyncua import ua
 from asyncua.server.history import HistoryManager
 
-from model import NodeSpec, value_at
+from model import NodeSpec, sawtooth_stats, value_at
 
 
 class VirtualHistoryStorage:
@@ -66,20 +64,75 @@ class VirtualHistoryStorage:
             timestamps = reversed(range(first, last + 1))
 
         max_items = limit or self.page_size
-        points = []
+        selected = []
         continuation = None
         for ts in timestamps:
-            if len(points) >= max_items:
+            if len(selected) >= max_items:
                 continuation = datetime.fromtimestamp(ts, timezone.utc)
                 break
-            points.append(ua.DataValue(
+            selected.append(ts)
+        points = [
+            ua.DataValue(
                 ua.Variant(value_at(spec, ts), spec.data_type),
                 StatusCode=ua.StatusCode(ua.StatusCodes.Good),
                 SourceTimestamp=datetime.fromtimestamp(ts, timezone.utc),
-            ))
+            )
+            for ts in selected
+        ]
         if continuation is None and requested_end > end:
             continuation = end + timedelta(seconds=1)
         return points, continuation
+
+    def aggregate(self, node_id, start, end, interval_ms: float, aggregate_id: int):
+        spec = self.specs.get(str(node_id.Identifier))
+        if spec is None:
+            return []
+        start, end, forward = self._range(start, end)
+        if not forward:
+            start, end = end, start
+        if end - start > timedelta(seconds=self.query_duration):
+            end = start + timedelta(seconds=self.query_duration)
+
+        interval = interval_ms / 1000.0
+        bucket_start = start.timestamp()
+        output = []
+        ids = ua.ObjectIds
+        while bucket_start <= end.timestamp():
+            bucket_end = min(bucket_start + interval, end.timestamp() + 1)
+            first = int(bucket_start)
+            last = int(bucket_end - 1e-9)
+            count = max(0, last - first + 1)
+            if count == 0:
+                bucket_start += interval
+                continue
+
+            if aggregate_id == ids.AggregateFunction_Count:
+                result_value = count
+            elif spec.mode == "constant":
+                if not isinstance(spec.initial_value, (int, float, bool)):
+                    bucket_start += interval
+                    continue
+                result_value = float(spec.initial_value)
+            else:
+                _, total, minimum, maximum = sawtooth_stats(first, last)
+                if aggregate_id in (ids.AggregateFunction_Average, ids.AggregateFunction_TimeAverage):
+                    result_value = total / count
+                elif aggregate_id == ids.AggregateFunction_Minimum:
+                    result_value = minimum
+                elif aggregate_id == ids.AggregateFunction_Maximum:
+                    result_value = maximum
+                else:
+                    return None
+
+            output.append(ua.DataValue(
+                ua.Variant(result_value),
+                StatusCode=ua.StatusCode(ua.StatusCodes.Good),
+                SourceTimestamp=datetime.fromtimestamp(bucket_start, timezone.utc),
+            ))
+            bucket_start += interval
+        if not forward:
+            output.reverse()
+        return output
 
     async def read_node_history(self, node_id, start, end, nb_values):
         limit = nb_values if nb_values and nb_values > 0 else self.page_size
@@ -102,30 +155,13 @@ class AggregateHistoryManager(HistoryManager):
             result.StatusCode = ua.StatusCode(ua.StatusCodes.BadInvalidArgument)
             return result
 
-        raw, _ = self.storage.generate(rv.NodeId, details.StartTime, details.EndTime, None, apply_duration=True)
         aggregate_id = details.AggregateType[0].Identifier
-        buckets: dict[int, list[float]] = {}
-        for item in raw:
-            key = int(item.SourceTimestamp.timestamp() * 1000 // interval_ms)
-            buckets.setdefault(key, []).append(item.Value.Value)
-
-        ids = ua.ObjectIds
-        for key in sorted(buckets):
-            values = buckets[key]
-            if aggregate_id in (ids.AggregateFunction_Average, ids.AggregateFunction_TimeAverage):
-                value = fmean(values)
-            elif aggregate_id == ids.AggregateFunction_Minimum:
-                value = min(values)
-            elif aggregate_id == ids.AggregateFunction_Maximum:
-                value = max(values)
-            elif aggregate_id == ids.AggregateFunction_Count:
-                value = len(values)
-            else:
-                result.StatusCode = ua.StatusCode(ua.StatusCodes.BadAggregateNotSupported)
-                return result
-            ts = datetime.fromtimestamp(key * interval_ms / 1000, timezone.utc)
-            result.HistoryData.DataValues.append(ua.DataValue(
-                ua.Variant(value), StatusCode=ua.StatusCode(ua.StatusCodes.Good), SourceTimestamp=ts
-            ))
+        values = self.storage.aggregate(
+            rv.NodeId, details.StartTime, details.EndTime, interval_ms, aggregate_id
+        )
+        if values is None:
+            result.StatusCode = ua.StatusCode(ua.StatusCodes.BadAggregateNotSupported)
+            return result
+        result.HistoryData.DataValues = values
         result.StatusCode = ua.StatusCode(ua.StatusCodes.Good)
         return result
