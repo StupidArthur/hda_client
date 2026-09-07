@@ -23,8 +23,7 @@ func NewContainer() *Container {
 	configDir, _ := os.UserConfigDir()
 	store := storage.NewJSONConfig(filepath.Join(configDir, "hda_client", "config.json"))
 
-	factory := func(url string) (hda.HistoryClient, error) {
-		ctx := context.Background()
+	factory := func(ctx context.Context, url string) (hda.HistoryClient, error) {
 		return opcua.NewClient(ctx, url)
 	}
 
@@ -48,4 +47,3 @@ func (c *Container) Startup(ctx context.Context) {
 func (c *Container) Shutdown(_ context.Context) {
 	c.svc.Disconnect()
 }
-

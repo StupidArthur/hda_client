@@ -6,7 +6,7 @@ from asyncua import ua
 from config import parse_duration
 from model import build_specs, realtime_is_bad, sawtooth, sawtooth_stats
 from history import VirtualHistoryStorage
-from server import normalize_write_timestamp
+from server import normalize_write_timestamp, realtime_value
 
 
 class MockerTests(unittest.TestCase):
@@ -17,6 +17,13 @@ class MockerTests(unittest.TestCase):
         self.assertFalse(realtime_is_bad(539, 540, 60))
         self.assertTrue(realtime_is_bad(540, 540, 60))
         self.assertFalse(realtime_is_bad(600, 540, 60))
+
+    def test_realtime_value_changes_with_timestamp(self):
+        settings = type("SettingsStub", (), {"good_duration": 540, "bad_duration": 60})()
+        spec = build_specs(0, 1, 0, 0)[0]
+        first = realtime_value(spec, datetime.fromtimestamp(1, timezone.utc), settings)
+        second = realtime_value(spec, datetime.fromtimestamp(2, timezone.utc), settings)
+        self.assertNotEqual(first.Value.Value, second.Value.Value)
 
     def test_sawtooth_stats(self):
         values = [sawtooth(i) for i in range(37, 237)]
@@ -47,6 +54,26 @@ class MockerTests(unittest.TestCase):
             ua.ObjectIds.AggregateFunction_Average,
         )
         self.assertEqual(len(values), 6)
+
+    async def test_history_page_uses_smaller_client_limit(self):
+        spec = build_specs(0, 1, 0, 0)
+        storage = VirtualHistoryStorage(spec, 604800, 86400, 1200)
+        end = datetime.now(timezone.utc).replace(microsecond=0)
+        values, continuation = await storage.read_node_history(
+            ua.NodeId("dynamic_0001", 2), end - timedelta(hours=1), end, 500
+        )
+        self.assertEqual(len(values), 500)
+        self.assertIsNotNone(continuation)
+
+    async def test_history_page_enforces_smaller_server_limit(self):
+        spec = build_specs(0, 1, 0, 0)
+        storage = VirtualHistoryStorage(spec, 604800, 86400, 1200)
+        end = datetime.now(timezone.utc).replace(microsecond=0)
+        values, continuation = await storage.read_node_history(
+            ua.NodeId("dynamic_0001", 2), end - timedelta(hours=1), end, 5000
+        )
+        self.assertEqual(len(values), 1200)
+        self.assertIsNotNone(continuation)
 
     def test_missing_source_timestamp_uses_server_timestamp(self):
         server_time = datetime.now(timezone.utc)

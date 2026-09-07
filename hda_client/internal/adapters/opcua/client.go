@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gopcua/opcua"
+	"github.com/gopcua/opcua/id"
 	"github.com/gopcua/opcua/ua"
 
 	"hda_client/internal/hda"
@@ -37,78 +38,147 @@ func (c *Client) Close() error {
 	return c.c.Close(ctx)
 }
 
-// ReadRaw 读单个位号单个时间段。分段由调用方保证(<=15min, <=900点)。
+// ReadRaw 读取单个位号的完整时间范围，并使用 continuation point 串行翻页。
 func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Time) ([]hda.DataPoint, error) {
 	id, err := ua.ParseNodeID(nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("无效 NodeID %q: %w", nodeID, err)
 	}
-	resp, err := c.c.HistoryReadRawModified(ctx,
-		[]*ua.HistoryReadValueID{{NodeID: id, DataEncoding: &ua.QualifiedName{}}},
-		&ua.ReadRawModifiedDetails{
-			IsReadModified:   false,
-			StartTime:        start,
-			EndTime:          end,
-			NumValuesPerNode: 5000,
-			ReturnBounds:     false,
-		})
-	if err != nil {
-		return nil, err
-	}
+
 	points := make([]hda.DataPoint, 0)
-	for _, r := range resp.Results {
-		if r.StatusCode != ua.StatusOK {
-			continue
+	node := &ua.HistoryReadValueID{NodeID: id, DataEncoding: &ua.QualifiedName{}}
+	details := &ua.ReadRawModifiedDetails{
+		IsReadModified:   false,
+		StartTime:        start,
+		EndTime:          end,
+		NumValuesPerNode: 5000,
+		ReturnBounds:     false,
+	}
+	var previousContinuationPoint []byte
+	completed := false
+	defer func() {
+		if !completed && len(node.ContinuationPoint) > 0 {
+			releaseCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			_ = c.releaseHistoryContinuationPoint(releaseCtx, node, details)
 		}
-		hd, ok := r.HistoryData.Value.(*ua.HistoryData)
-		if !ok || hd == nil {
-			continue
+	}()
+
+	for {
+		resp, err := c.c.HistoryReadRawModified(ctx, []*ua.HistoryReadValueID{node}, details)
+		if err != nil {
+			return nil, err
 		}
-		for _, dv := range hd.DataValues {
-			p := hda.DataPoint{
-				Time:    dv.SourceTimestamp.UTC(),
-				Quality: qualityName(dv.Status),
-				HasValue: dv.Value != nil,
+		if resp == nil || len(resp.Results) != 1 {
+			return nil, fmt.Errorf("位号 %q 的历史读取返回了无效结果", nodeID)
+		}
+
+		r := resp.Results[0]
+		if statusSeverity(r.StatusCode) == "Bad" {
+			return nil, fmt.Errorf("位号 %q 的历史读取失败: %s", nodeID, r.StatusCode)
+		}
+		if r.HistoryData != nil {
+			hd, ok := r.HistoryData.Value.(*ua.HistoryData)
+			if !ok && r.HistoryData.Value != nil {
+				return nil, fmt.Errorf("位号 %q 的历史数据类型无效", nodeID)
 			}
-			if dv.Value != nil {
-				p.Value = toFloat(dv.Value.Value())
+			if hd != nil {
+				for _, dv := range hd.DataValues {
+					p := hda.DataPoint{
+						Time:     dv.SourceTimestamp.UTC(),
+						Quality:  qualityName(dv.Status),
+						HasValue: dv.Value != nil,
+					}
+					if dv.Value != nil {
+						value, err := toFloat(dv.Value.Value())
+						if err != nil {
+							return nil, fmt.Errorf("位号 %q 在 %s 的值无法转为数值: %w", nodeID, p.Time.Format(time.RFC3339Nano), err)
+						}
+						p.Value = value
+					}
+					points = append(points, p)
+				}
 			}
-			points = append(points, p)
 		}
+
+		if len(r.ContinuationPoint) == 0 {
+			completed = true
+			break
+		}
+		if string(r.ContinuationPoint) == string(previousContinuationPoint) {
+			return nil, fmt.Errorf("位号 %q 的 continuation point 未向前推进", nodeID)
+		}
+		previousContinuationPoint = append(previousContinuationPoint[:0], r.ContinuationPoint...)
+		node.ContinuationPoint = append(node.ContinuationPoint[:0], r.ContinuationPoint...)
 	}
 	return points, nil
+}
+
+func (c *Client) releaseHistoryContinuationPoint(ctx context.Context, node *ua.HistoryReadValueID, details *ua.ReadRawModifiedDetails) error {
+	req := &ua.HistoryReadRequest{
+		HistoryReadDetails: &ua.ExtensionObject{
+			TypeID:       ua.NewFourByteExpandedNodeID(0, id.ReadRawModifiedDetails_Encoding_DefaultBinary),
+			EncodingMask: ua.ExtensionObjectBinary,
+			Value:        details,
+		},
+		TimestampsToReturn:        ua.TimestampsToReturnBoth,
+		ReleaseContinuationPoints: true,
+		NodesToRead:               []*ua.HistoryReadValueID{node},
+	}
+	return c.c.Send(ctx, req, func(ua.Response) error { return nil })
 }
 
 func qualityName(s ua.StatusCode) string {
 	if s == ua.StatusOK {
 		return "Good"
 	}
-	return fmt.Sprintf("Bad/0x%08X", uint32(s))
+	return fmt.Sprintf("%s/0x%08X", statusSeverity(s), uint32(s))
 }
 
-func toFloat(v interface{}) float64 {
+func statusSeverity(s ua.StatusCode) string {
+	switch uint32(s) & 0xC0000000 {
+	case 0:
+		return "Good"
+	case 0x40000000:
+		return "Uncertain"
+	default:
+		return "Bad"
+	}
+}
+
+func toFloat(v interface{}) (float64, error) {
 	switch t := v.(type) {
 	case float64:
-		return t
+		return t, nil
 	case float32:
-		return float64(t)
+		return float64(t), nil
 	case int64:
-		return float64(t)
+		return float64(t), nil
 	case int32:
-		return float64(t)
+		return float64(t), nil
+	case int16:
+		return float64(t), nil
+	case int8:
+		return float64(t), nil
 	case int:
-		return float64(t)
+		return float64(t), nil
 	case uint64:
-		return float64(t)
+		return float64(t), nil
 	case uint32:
-		return float64(t)
+		return float64(t), nil
+	case uint16:
+		return float64(t), nil
+	case uint8:
+		return float64(t), nil
+	case uint:
+		return float64(t), nil
 	case bool:
 		if t {
-			return 1
+			return 1, nil
 		}
-		return 0
+		return 0, nil
 	default:
-		return 0
+		return 0, fmt.Errorf("不支持的类型 %T", v)
 	}
 }
 
@@ -116,31 +186,37 @@ func toFloat(v interface{}) float64 {
 func (c *Client) BrowseVariables(ctx context.Context, ns uint16) ([]hda.ServerTag, error) {
 	objects := c.c.Node(ua.NewNumericNodeID(0, 85))
 	out := []hda.ServerTag{}
-	seen := map[string]bool{}
+	seenTags := map[string]bool{}
+	visited := map[string]bool{}
 
 	var walk func(n *opcua.Node, depth int) error
 	walk = func(n *opcua.Node, depth int) error {
 		if depth > 12 {
 			return nil
 		}
-		children, err := n.Children(ctx, 0, ua.NodeClassUnspecified)
-		if err != nil {
+		key := n.ID.String()
+		if visited[key] {
 			return nil
 		}
+		visited[key] = true
+		children, err := n.Children(ctx, 0, ua.NodeClassUnspecified)
+		if err != nil {
+			return fmt.Errorf("浏览节点 %q 失败: %w", key, err)
+		}
 		for _, ch := range children {
-			if ch.ID.Namespace() != ns {
-				continue
-			}
 			cls, err := ch.NodeClass(ctx)
 			if err != nil {
-				continue
+				return fmt.Errorf("读取节点 %q 类型失败: %w", ch.ID, err)
 			}
-			if cls == ua.NodeClassVariable {
-				bn, _ := ch.BrowseName(ctx)
-				key := ch.ID.String()
-				if !seen[key] {
-					seen[key] = true
-					out = append(out, hda.ServerTag{NodeID: key, Name: bn.Name})
+			if cls == ua.NodeClassVariable && ch.ID.Namespace() == ns {
+				bn, err := ch.BrowseName(ctx)
+				if err != nil {
+					return fmt.Errorf("读取节点 %q 名称失败: %w", ch.ID, err)
+				}
+				childKey := ch.ID.String()
+				if !seenTags[childKey] {
+					seenTags[childKey] = true
+					out = append(out, hda.ServerTag{NodeID: childKey, Name: bn.Name})
 				}
 			}
 			if cls == ua.NodeClassObject || cls == ua.NodeClassVariable {
@@ -157,4 +233,3 @@ func (c *Client) BrowseVariables(ctx context.Context, ns uint16) ([]hda.ServerTa
 	}
 	return out, nil
 }
-

@@ -34,7 +34,11 @@ func (b *QueryBinding) StartQuery(cfg hda.QueryConfig) (string, error) {
 		b.mu.Unlock()
 		return "", hda.ErrBusy{}
 	}
-	ctx, cancel := context.WithCancel(context.Background())
+	parent := b.ctx
+	if parent == nil {
+		parent = context.Background()
+	}
+	ctx, cancel := context.WithCancel(parent)
 	b.cancel = cancel
 	b.active = true
 	b.mu.Unlock()
@@ -76,4 +80,3 @@ func (b *QueryBinding) CancelQuery() {
 		b.cancel()
 	}
 }
-

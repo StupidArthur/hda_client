@@ -1,7 +1,10 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -25,7 +28,36 @@ func (j *JSONConfig) Save(cfg hda.QueryConfig) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(j.path, data, 0o644)
+	data = append(data, '\n')
+	tmp, err := os.CreateTemp(filepath.Dir(j.path), ".config-*.tmp")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	committed := false
+	defer func() {
+		_ = tmp.Close()
+		if !committed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if err := tmp.Chmod(0o644); err != nil {
+		return err
+	}
+	if _, err := tmp.Write(data); err != nil {
+		return err
+	}
+	if err := tmp.Sync(); err != nil {
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, j.path); err != nil {
+		return fmt.Errorf("替换配置文件失败: %w", err)
+	}
+	committed = true
+	return nil
 }
 
 func (j *JSONConfig) Load() (hda.QueryConfig, bool, error) {
@@ -37,9 +69,23 @@ func (j *JSONConfig) Load() (hda.QueryConfig, bool, error) {
 		return hda.QueryConfig{}, false, err
 	}
 	var cfg hda.QueryConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&cfg); err != nil {
+		return hda.QueryConfig{}, false, err
+	}
+	if err := ensureEOF(dec); err != nil {
 		return hda.QueryConfig{}, false, err
 	}
 	return cfg, true, nil
 }
 
+func ensureEOF(dec *json.Decoder) error {
+	var extra interface{}
+	if err := dec.Decode(&extra); err == io.EOF {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return fmt.Errorf("配置文件只能包含一个 JSON 对象")
+}

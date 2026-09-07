@@ -3,14 +3,14 @@ package hda
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
-// 分段策略：单位号、每段最大 15 分钟(秒级约 900 点, 留余量防服务器截断)。
-const SegmentMinutes = 15
-
 // QueryRunner 执行一次完整查询, 返回按位号分组的结果。
+// 不同位号可并发；单位号的 continuation point 分页由 HistoryClient 串行完成。
 // done 回调用于进度通知, 可传 nil。
 func QueryRunner(
 	ctx context.Context,
@@ -18,11 +18,12 @@ func QueryRunner(
 	cfg QueryConfig,
 	done func(QueryProgress),
 ) ([]TagResult, error) {
-	if cfg.Concurrency < 1 {
-		cfg.Concurrency = 16
+	var err error
+	cfg, err = cfg.NormalizeAndValidate()
+	if err != nil {
+		return nil, err
 	}
-	seg := time.Duration(SegmentMinutes) * time.Minute
-	end, err := time.ParseInLocation("2006-01-02T15:04:05", cfg.EndTime, time.Local)
+	end, err := time.ParseInLocation(queryTimeLayout, cfg.EndTime, time.Local)
 	if err != nil {
 		return nil, fmt.Errorf("结束时间格式错误(需 yyyy-MM-ddTHH:mm:ss): %w", err)
 	}
@@ -31,19 +32,10 @@ func QueryRunner(
 	type job struct {
 		tag    string
 		nodeID string
-		s      time.Time
-		e      time.Time
 	}
-	var jobs []job
+	jobs := make([]job, 0, len(cfg.Tags))
 	for _, tag := range cfg.Tags {
-		nodeID := BuildNodeID(cfg.NS, tag)
-		for t := start; t.Before(end); t = t.Add(seg) {
-			e := t.Add(seg)
-			if e.After(end) {
-				e = end
-			}
-			jobs = append(jobs, job{tag, nodeID, t, e})
-		}
+		jobs = append(jobs, job{tag: tag, nodeID: BuildNodeID(cfg.NS, tag)})
 	}
 	total := len(jobs)
 	if total == 0 {
@@ -56,8 +48,8 @@ func QueryRunner(
 		data []DataPoint
 		err  error
 	}
-	ch := make(chan item, total)
-	sem := make(chan struct{}, cfg.Concurrency)
+	jobCh := make(chan job)
+	ch := make(chan item)
 
 	// 进度计数(线程安全用原子或串行提交)
 	var doneCount int
@@ -70,48 +62,73 @@ func QueryRunner(
 	}
 	emitProgress(true)
 
-	var pending int
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	for _, j := range jobs {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		sem <- struct{}{}
-		pending++
-		go func(j job) {
-			defer func() { <-sem }()
-			data, err := client.ReadRaw(ctx, j.nodeID, j.s, j.e)
-			ch <- item{j.tag, data, err}
-		}(j)
+	workerCount := min(cfg.Concurrency, total)
+	var workers sync.WaitGroup
+	workers.Add(workerCount)
+	for range workerCount {
+		go func() {
+			defer workers.Done()
+			for j := range jobCh {
+				data, err := client.ReadRaw(ctx, j.nodeID, start, end)
+				ch <- item{j.tag, data, err}
+			}
+		}()
 	}
+	go func() {
+		defer close(jobCh)
+		for _, j := range jobs {
+			select {
+			case jobCh <- j:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	go func() {
+		workers.Wait()
+		close(ch)
+	}()
 
 	results := map[string]*TagResult{}
-	for i := 0; i < pending; i++ {
-		it := <-ch
+	var firstErr error
+	for it := range ch {
 		doneCount++
 		if it.err != nil {
-			// 单段失败不中断整体; 记录空结果
-			records += 0
-		} else {
-			records += int64(len(it.data))
-			r := results[it.tag]
-			if r == nil {
-				r = &TagResult{Tag: it.tag}
-				results[it.tag] = r
+			if firstErr == nil {
+				firstErr = fmt.Errorf("查询位号 %q 失败: %w", it.tag, it.err)
+				cancel()
 			}
-			r.Points = append(r.Points, it.data...)
+			continue
 		}
+		if firstErr != nil {
+			continue
+		}
+		records += int64(len(it.data))
+		r := results[it.tag]
+		if r == nil {
+			r = &TagResult{Tag: it.tag}
+			results[it.tag] = r
+		}
+		r.Points = append(r.Points, it.data...)
 		emitProgress(true)
+	}
+	if firstErr != nil {
+		return nil, firstErr
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
 	}
 	emitProgress(false)
 
 	ordered := make([]TagResult, 0, len(results))
 	for _, tag := range cfg.Tags {
 		if r, ok := results[tag]; ok {
+			sort.SliceStable(r.Points, func(i, j int) bool {
+				return r.Points[i].Time.Before(r.Points[j].Time)
+			})
 			ordered = append(ordered, *r)
 		}
 	}

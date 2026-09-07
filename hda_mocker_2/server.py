@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import suppress
 from dataclasses import replace
 from datetime import datetime, timezone
 
@@ -17,6 +18,30 @@ def normalize_write_timestamp(value: ua.DataValue) -> ua.DataValue:
         return value
     timestamp = value.ServerTimestamp or datetime.now(timezone.utc)
     return replace(value, SourceTimestamp=timestamp, SourcePicoseconds=None)
+
+
+def realtime_value(spec: NodeSpec, now: datetime, settings: Settings) -> ua.DataValue:
+    status = ua.StatusCodes.Good
+    if spec.mode == "bad_realtime" and realtime_is_bad(
+        now.timestamp(), settings.good_duration, settings.bad_duration
+    ):
+        status = ua.StatusCodes.BadNoCommunication
+    return ua.DataValue(
+        ua.Variant(value_at(spec, now.timestamp()), spec.data_type),
+        StatusCode=ua.StatusCode(status),
+        SourceTimestamp=now,
+    )
+
+
+async def update_realtime_nodes(nodes: list[tuple[object, NodeSpec]], settings: Settings) -> None:
+    """Write changing values so monitored-item subscriptions receive data changes."""
+    loop = asyncio.get_running_loop()
+    next_update = loop.time()
+    while True:
+        now = datetime.now(timezone.utc)
+        await asyncio.gather(*(node.write_value(realtime_value(spec, now, settings)) for node, spec in nodes))
+        next_update += settings.interval
+        await asyncio.sleep(max(0.0, next_update - loop.time()))
 
 
 async def run(settings: Settings) -> None:
@@ -42,6 +67,7 @@ async def run(settings: Settings) -> None:
         "static": await root.add_object(namespace, "StaticNodes"),
         "bad_realtime": await root.add_object(namespace, "BadRealtimeNodes"),
     }
+    realtime_nodes = []
 
     for spec in specs:
         if spec.node_id.startswith("inter_"):
@@ -66,24 +92,16 @@ async def run(settings: Settings) -> None:
             server.set_attribute_value_setter(node.nodeid, write_value)
         await server.historize_node_data_change(node)
         if spec.mode in {"sawtooth", "bad_realtime"}:
-            # Read-time calculation avoids walking and rewriting thousands of nodes every second.
-            def current_value(_node_id, _attribute, spec=spec):
-                now = datetime.now(timezone.utc)
-                status = ua.StatusCodes.Good
-                if spec.mode == "bad_realtime" and realtime_is_bad(
-                    now.timestamp(), settings.good_duration, settings.bad_duration
-                ):
-                    status = ua.StatusCodes.BadNoCommunication
-                return ua.DataValue(
-                    ua.Variant(value_at(spec, now.timestamp()), spec.data_type),
-                    StatusCode=ua.StatusCode(status),
-                    SourceTimestamp=now,
-                )
-
-            server.set_attribute_value_callback(node.nodeid, current_value)
+            realtime_nodes.append((node, spec))
 
     print(f"HDA Mocker: opc.tcp://{settings.host}:{settings.port}/hda-mocker/")
     print(f"Namespace: ns={namespace} ({settings.namespace_uri})")
     print(f"Nodes: {len(specs)}; history={settings.history_length}s; page={settings.page_size}")
     async with server:
-        await asyncio.Event().wait()
+        updater = asyncio.create_task(update_realtime_nodes(realtime_nodes, settings))
+        try:
+            await asyncio.Event().wait()
+        finally:
+            updater.cancel()
+            with suppress(asyncio.CancelledError):
+                await updater

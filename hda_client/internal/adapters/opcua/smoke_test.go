@@ -30,7 +30,7 @@ func TestReadRawRemote(t *testing.T) {
 	t.Logf("M0001.VALUE: %d 点, 首条 %v = %v [%s]", len(pts), pts[0].Time, pts[0].Value, pts[0].Quality)
 
 	// 引擎级验证: 单位号分段+并发
-	svc := hda.NewService(func(u string) (hda.HistoryClient, error) { return NewClient(ctx, u) }, nil)
+	svc := hda.NewService(func(factoryCtx context.Context, u string) (hda.HistoryClient, error) { return NewClient(factoryCtx, u) }, nil)
 	if err := svc.Connect(ctx, url); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
@@ -49,4 +49,3 @@ func TestReadRawRemote(t *testing.T) {
 		t.Logf("tag=%s points=%d", r.Tag, len(r.Points))
 	}
 }
-

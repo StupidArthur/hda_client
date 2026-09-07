@@ -135,7 +135,7 @@ class VirtualHistoryStorage:
         return output
 
     async def read_node_history(self, node_id, start, end, nb_values):
-        limit = nb_values if nb_values and nb_values > 0 else self.page_size
+        limit = min(nb_values, self.page_size) if nb_values and nb_values > 0 else self.page_size
         return self.generate(node_id, start, end, limit)
 
 
