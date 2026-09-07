@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from asyncua import Server, ua
@@ -8,6 +9,14 @@ from asyncua import Server, ua
 from config import Settings
 from history import AggregateHistoryManager, VirtualHistoryStorage
 from model import NodeSpec, build_specs, realtime_is_bad, value_at
+
+
+def normalize_write_timestamp(value: ua.DataValue) -> ua.DataValue:
+    """Fill a missing source timestamp with the server receive time in UTC."""
+    if value.SourceTimestamp is not None:
+        return value
+    timestamp = value.ServerTimestamp or datetime.now(timezone.utc)
+    return replace(value, SourceTimestamp=timestamp, SourcePicoseconds=None)
 
 
 async def run(settings: Settings) -> None:
@@ -50,6 +59,11 @@ async def run(settings: Settings) -> None:
         )
         if spec.writable:
             await node.set_writable()
+
+            def write_value(node_data, attribute, value):
+                node_data.attributes[attribute].value = normalize_write_timestamp(value)
+
+            server.set_attribute_value_setter(node.nodeid, write_value)
         await server.historize_node_data_change(node)
         if spec.mode in {"sawtooth", "bad_realtime"}:
             # Read-time calculation avoids walking and rewriting thousands of nodes every second.

@@ -6,6 +6,7 @@ from asyncua import ua
 from config import parse_duration
 from model import build_specs, realtime_is_bad, sawtooth, sawtooth_stats
 from history import VirtualHistoryStorage
+from server import normalize_write_timestamp
 
 
 class MockerTests(unittest.TestCase):
@@ -46,6 +47,25 @@ class MockerTests(unittest.TestCase):
             ua.ObjectIds.AggregateFunction_Average,
         )
         self.assertEqual(len(values), 6)
+
+    def test_missing_source_timestamp_uses_server_timestamp(self):
+        server_time = datetime.now(timezone.utc)
+        value = ua.DataValue(
+            ua.Variant(42.0),
+            ServerTimestamp=server_time,
+        )
+        normalized = normalize_write_timestamp(value)
+        self.assertEqual(normalized.SourceTimestamp, server_time)
+
+    def test_client_source_timestamp_is_preserved(self):
+        source_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        value = ua.DataValue(
+            ua.Variant(42.0),
+            SourceTimestamp=source_time,
+            ServerTimestamp=datetime.now(timezone.utc),
+        )
+        normalized = normalize_write_timestamp(value)
+        self.assertEqual(normalized.SourceTimestamp, source_time)
 
 
 if __name__ == "__main__":
