@@ -14,3 +14,11 @@ type HistoryClient interface {
 	// Close 关闭连接。
 	Close() error
 }
+
+// ProgressiveHistoryClient is optional so existing adapters and callers keep
+// working. Implementations report records after every server page while still
+// reading continuation points serially for one node.
+type ProgressiveHistoryClient interface {
+	HistoryClient
+	ReadRawWithProgress(ctx context.Context, nodeID string, start, end time.Time, onPage func(records int)) ([]DataPoint, error)
+}

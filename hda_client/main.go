@@ -18,8 +18,8 @@ func main() {
 
 	err := wails.Run(&options.App{
 		Title:     "HDA 查询工具",
-		Width:     1280,
-		Height:    820,
+		Width:     1600,
+		Height:    900,
 		MinWidth:  960,
 		MinHeight: 640,
 		AssetServer: &assetserver.Options{

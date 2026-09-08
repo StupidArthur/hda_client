@@ -11,20 +11,20 @@ import (
 	"hda_client/internal/hda"
 )
 
-// JSONConfig 把最近一次查询配置持久化到 JSON 文件。
-type JSONConfig struct {
+// JSONStore 把上次会话的界面状态持久化到 JSON 文件(原子写: 临时文件 + rename)。
+type JSONStore struct {
 	path string
 }
 
-func NewJSONConfig(path string) *JSONConfig {
-	return &JSONConfig{path: path}
+func NewJSONStore(path string) *JSONStore {
+	return &JSONStore{path: path}
 }
 
-func (j *JSONConfig) Save(cfg hda.QueryConfig) error {
+func (j *JSONStore) Save(settings hda.AppSettings) error {
 	if err := os.MkdirAll(filepath.Dir(j.path), 0o755); err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(cfg, "", "  ")
+	data, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -60,24 +60,26 @@ func (j *JSONConfig) Save(cfg hda.QueryConfig) error {
 	return nil
 }
 
-func (j *JSONConfig) Load() (hda.QueryConfig, bool, error) {
+// Load 读取界面状态。旧版本以 QueryConfig 结构保存的文件会因未知字段
+// 解析失败, 此时按"未保存过"处理, 下次保存即完成迁移。
+func (j *JSONStore) Load() (hda.AppSettings, bool, error) {
 	data, err := os.ReadFile(j.path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return hda.QueryConfig{}, false, nil
+			return hda.AppSettings{}, false, nil
 		}
-		return hda.QueryConfig{}, false, err
+		return hda.AppSettings{}, false, err
 	}
-	var cfg hda.QueryConfig
+	var settings hda.AppSettings
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&cfg); err != nil {
-		return hda.QueryConfig{}, false, err
+	if err := dec.Decode(&settings); err != nil {
+		return hda.AppSettings{}, false, fmt.Errorf("解析配置文件 %q: %w", j.path, err)
 	}
 	if err := ensureEOF(dec); err != nil {
-		return hda.QueryConfig{}, false, err
+		return hda.AppSettings{}, false, fmt.Errorf("解析配置文件 %q: %w", j.path, err)
 	}
-	return cfg, true, nil
+	return settings, true, nil
 }
 
 func ensureEOF(dec *json.Decoder) error {

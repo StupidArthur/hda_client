@@ -21,7 +21,7 @@ type Container struct {
 
 func NewContainer() *Container {
 	configDir, _ := os.UserConfigDir()
-	store := storage.NewJSONConfig(filepath.Join(configDir, "hda_client", "config.json"))
+	store := storage.NewJSONStore(filepath.Join(configDir, "hda_client", "config.json"))
 
 	factory := func(ctx context.Context, url string) (hda.HistoryClient, error) {
 		return opcua.NewClient(ctx, url)

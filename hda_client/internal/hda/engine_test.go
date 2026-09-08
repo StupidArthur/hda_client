@@ -88,3 +88,41 @@ func TestQueryRunnerReturnsNodeError(t *testing.T) {
 		t.Fatalf("QueryRunner() error = %v, want wrapped %v", err, want)
 	}
 }
+
+type progressiveRunnerTestClient struct{ runnerTestClient }
+
+func (c *progressiveRunnerTestClient) ReadRawWithProgress(_ context.Context, nodeID string, _, _ time.Time, onPage func(int)) ([]DataPoint, error) {
+	c.mu.Lock()
+	c.calls[nodeID]++
+	data := append([]DataPoint(nil), c.results[nodeID]...)
+	c.mu.Unlock()
+	if len(data) > 0 {
+		onPage(1)
+		onPage(len(data) - 1)
+	}
+	return data, c.err[nodeID]
+}
+
+func TestQueryRunnerReportsRecordsBeforeNodeCompletes(t *testing.T) {
+	client := &progressiveRunnerTestClient{runnerTestClient: runnerTestClient{
+		calls:   make(map[string]int),
+		results: map[string][]DataPoint{"ns=1;s=A": {{}, {}, {}}},
+		err:     make(map[string]error),
+	}}
+	var progress []QueryProgress
+	_, err := QueryRunner(context.Background(), client, QueryConfig{
+		URL: "opc.tcp://test", NS: 1, Tags: []string{"A"}, EndTime: "2026-09-07T10:02:00", DurationSec: 120, Concurrency: 1,
+	}, func(p QueryProgress) { progress = append(progress, p) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(progress) < 3 {
+		t.Fatalf("progress events = %#v", progress)
+	}
+	if progress[1].Records != 1 || progress[1].Done != 0 {
+		t.Fatalf("first page progress = %#v", progress[1])
+	}
+	if progress[len(progress)-1].Records != 3 || progress[len(progress)-1].Done != 1 {
+		t.Fatalf("final progress = %#v", progress[len(progress)-1])
+	}
+}

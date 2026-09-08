@@ -9,15 +9,15 @@ import (
 // ClientFactory 创建历史客户端(由 opcua adapter 提供)。
 type ClientFactory func(ctx context.Context, url string) (HistoryClient, error)
 
-// Service 业务编排: 连接管理 + 查询 + 浏览 + 配置。
+// Service 业务编排: 连接管理 + 查询 + 浏览 + 界面状态。
 type Service struct {
 	factory ClientFactory
 	mu      sync.RWMutex
 	client  HistoryClient
-	store   ConfigStore
+	store   SettingsStore
 }
 
-func NewService(factory ClientFactory, store ConfigStore) *Service {
+func NewService(factory ClientFactory, store SettingsStore) *Service {
 	return &Service{factory: factory, store: store}
 }
 
@@ -71,6 +71,19 @@ func (s *Service) RunQuery(ctx context.Context, cfg QueryConfig, onProgress func
 	return QueryRunner(ctx, client, cfg, onProgress)
 }
 
+func (s *Service) RunQueryEach(ctx context.Context, cfg QueryConfig, onProgress func(QueryProgress), consume func(TagResult) error) (int, int64, error) {
+	cfg, err := cfg.NormalizeAndValidate()
+	if err != nil {
+		return 0, 0, err
+	}
+	client, err := s.factory(ctx, cfg.URL)
+	if err != nil {
+		return 0, 0, fmt.Errorf("连接服务器失败: %w", err)
+	}
+	defer client.Close()
+	return QueryRunnerEach(ctx, client, cfg, onProgress, consume)
+}
+
 // Browse 浏览当前连接的服务器命名空间变量。
 func (s *Service) Browse(ctx context.Context, ns uint16) ([]ServerTag, error) {
 	s.mu.RLock()
@@ -81,25 +94,30 @@ func (s *Service) Browse(ctx context.Context, ns uint16) ([]ServerTag, error) {
 	return s.client.BrowseVariables(ctx, ns)
 }
 
-func (s *Service) SaveConfig(cfg QueryConfig) error {
+// SaveSettings 持久化界面状态。界面输入允许是半成品, 不做查询级强校验,
+// 只归一化 mode 默认值, 保证下次启动能还原到同样的输入现场。
+func (s *Service) SaveSettings(settings AppSettings) error {
 	if s.store == nil {
 		return nil
 	}
-	cfg, err := cfg.NormalizeAndValidate()
-	if err != nil {
-		return err
+	if settings.Mode == "" {
+		settings.Mode = "direct"
 	}
-	return s.store.Save(cfg)
+	return s.store.Save(settings)
 }
 
-func (s *Service) LoadConfig() (QueryConfig, bool, error) {
+// LoadSettings 读取上次保存的界面状态。未保存过时返回零值(以 URL 为空
+// 判断), 让前端保持出厂默认, 而不是抛错打断启动。
+func (s *Service) LoadSettings() (AppSettings, error) {
 	if s.store == nil {
-		return QueryConfig{}, false, nil
+		return AppSettings{}, nil
 	}
-	cfg, found, err := s.store.Load()
+	settings, found, err := s.store.Load()
 	if err != nil || !found {
-		return cfg, found, err
+		return AppSettings{}, err
 	}
-	cfg, err = cfg.NormalizeAndValidate()
-	return cfg, true, err
+	if settings.Mode == "" {
+		settings.Mode = "direct"
+	}
+	return settings, nil
 }

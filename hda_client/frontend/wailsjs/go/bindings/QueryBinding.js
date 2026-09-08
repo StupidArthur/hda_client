@@ -6,6 +6,50 @@ export function CancelQuery() {
   return window['go']['bindings']['QueryBinding']['CancelQuery']();
 }
 
+export function ChooseParquetFile() {
+  return window['go']['bindings']['QueryBinding']['ChooseParquetFile']();
+}
+
+export function ChooseParquetOutput() {
+  return window['go']['bindings']['QueryBinding']['ChooseParquetOutput']();
+}
+
+export function ExpandTagExpression(arg1) {
+  return window['go']['bindings']['QueryBinding']['ExpandTagExpression'](arg1);
+}
+
+export function ParseTagCSV(arg1) {
+  return window['go']['bindings']['QueryBinding']['ParseTagCSV'](arg1);
+}
+
+export function PreviewTagExpression(arg1) {
+  return window['go']['bindings']['QueryBinding']['PreviewTagExpression'](arg1);
+}
+
+export function ReadParquetNodesPage(arg1, arg2, arg3, arg4) {
+  return window['go']['bindings']['QueryBinding']['ReadParquetNodesPage'](arg1, arg2, arg3, arg4);
+}
+
+export function ReadParquetPage(arg1, arg2, arg3, arg4) {
+  return window['go']['bindings']['QueryBinding']['ReadParquetPage'](arg1, arg2, arg3, arg4);
+}
+
+export function ReadParquetSelectedSummary(arg1, arg2) {
+  return window['go']['bindings']['QueryBinding']['ReadParquetSelectedSummary'](arg1, arg2);
+}
+
+export function ReadParquetSummary(arg1) {
+  return window['go']['bindings']['QueryBinding']['ReadParquetSummary'](arg1);
+}
+
+export function ReadParquetTrend(arg1, arg2, arg3) {
+  return window['go']['bindings']['QueryBinding']['ReadParquetTrend'](arg1, arg2, arg3);
+}
+
+export function StartParquetQuery(arg1, arg2) {
+  return window['go']['bindings']['QueryBinding']['StartParquetQuery'](arg1, arg2);
+}
+
 export function StartQuery(arg1) {
   return window['go']['bindings']['QueryBinding']['StartQuery'](arg1);
 }

@@ -40,6 +40,12 @@ func (c *Client) Close() error {
 
 // ReadRaw 读取单个位号的完整时间范围，并使用 continuation point 串行翻页。
 func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Time) ([]hda.DataPoint, error) {
+	return c.ReadRawWithProgress(ctx, nodeID, start, end, nil)
+}
+
+// ReadRawWithProgress keeps HistoryRead continuation points serial for this
+// node and reports each successfully decoded server page immediately.
+func (c *Client) ReadRawWithProgress(ctx context.Context, nodeID string, start, end time.Time, onPage func(records int)) ([]hda.DataPoint, error) {
 	id, err := ua.ParseNodeID(nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("无效 NodeID %q: %w", nodeID, err)
@@ -55,6 +61,7 @@ func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Tim
 		ReturnBounds:     false,
 	}
 	var previousContinuationPoint []byte
+	stalledPages := 0
 	completed := false
 	defer func() {
 		if !completed && len(node.ContinuationPoint) > 0 {
@@ -77,6 +84,7 @@ func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Tim
 		if statusSeverity(r.StatusCode) == "Bad" {
 			return nil, fmt.Errorf("位号 %q 的历史读取失败: %s", nodeID, r.StatusCode)
 		}
+		pageRecords := 0
 		if r.HistoryData != nil {
 			hd, ok := r.HistoryData.Value.(*ua.HistoryData)
 			if !ok && r.HistoryData.Value != nil {
@@ -97,6 +105,10 @@ func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Tim
 						p.Value = value
 					}
 					points = append(points, p)
+					pageRecords++
+				}
+				if pageRecords > 0 && onPage != nil {
+					onPage(pageRecords)
 				}
 			}
 		}
@@ -105,8 +117,13 @@ func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Tim
 			completed = true
 			break
 		}
-		if string(r.ContinuationPoint) == string(previousContinuationPoint) {
-			return nil, fmt.Errorf("位号 %q 的 continuation point 未向前推进", nodeID)
+		if string(r.ContinuationPoint) == string(previousContinuationPoint) && pageRecords == 0 {
+			stalledPages++
+			if stalledPages >= 2 {
+				return nil, fmt.Errorf("位号 %q 的历史读取连续返回空页，continuation point 未推进", nodeID)
+			}
+		} else {
+			stalledPages = 0
 		}
 		previousContinuationPoint = append(previousContinuationPoint[:0], r.ContinuationPoint...)
 		node.ContinuationPoint = append(node.ContinuationPoint[:0], r.ContinuationPoint...)

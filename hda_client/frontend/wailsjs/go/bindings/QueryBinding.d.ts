@@ -5,6 +5,28 @@ import {context} from '../models';
 
 export function CancelQuery():Promise<void>;
 
+export function ChooseParquetFile():Promise<string>;
+
+export function ChooseParquetOutput():Promise<string>;
+
+export function ExpandTagExpression(arg1:string):Promise<Array<string>>;
+
+export function ParseTagCSV(arg1:string):Promise<Array<string>>;
+
+export function PreviewTagExpression(arg1:string):Promise<hda.TagExpressionPreview>;
+
+export function ReadParquetNodesPage(arg1:string,arg2:Array<string>,arg3:number,arg4:number):Promise<hda.ParquetPage>;
+
+export function ReadParquetPage(arg1:string,arg2:string,arg3:number,arg4:number):Promise<hda.ParquetPage>;
+
+export function ReadParquetSelectedSummary(arg1:string,arg2:Array<string>):Promise<hda.ParquetSummary>;
+
+export function ReadParquetSummary(arg1:string):Promise<hda.ParquetSummary>;
+
+export function ReadParquetTrend(arg1:string,arg2:Array<string>,arg3:number):Promise<Array<hda.TrendSeries>>;
+
+export function StartParquetQuery(arg1:hda.QueryConfig,arg2:string):Promise<string>;
+
 export function StartQuery(arg1:hda.QueryConfig):Promise<string>;
 
 export function Startup(arg1:context.Context):Promise<void>;
