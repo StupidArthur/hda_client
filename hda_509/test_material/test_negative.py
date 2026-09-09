@@ -5,11 +5,13 @@
 2) 使用未受信证书(自签,不在 trust 目录) -> 应失败(BadCertificateUntrusted)
 """
 import asyncio
+from pathlib import Path
 
 from asyncua import Client, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256, SecurityPolicyNone
 
 URL = "opc.tcp://127.0.0.1:48620/ua_mocker/"
+CERTS = Path(__file__).resolve().parent / "certs"
 
 
 async def try_no_security() -> None:
@@ -30,9 +32,9 @@ async def try_untrusted() -> None:
     client = Client(URL)
     await client.set_security(
         SecurityPolicyBasic256Sha256,
-        "certs/untrusted_cert.pem",
-        "certs/untrusted_key.pem",
-        server_certificate="certs/server_cert.pem",
+        CERTS / "untrusted_cert.pem",
+        CERTS / "untrusted_key.pem",
+        server_certificate=CERTS / "server_cert.pem",
         mode=ua.MessageSecurityMode.SignAndEncrypt,
     )
     try:

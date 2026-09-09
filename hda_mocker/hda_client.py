@@ -18,13 +18,15 @@ HDA (Historical Data Access) 客户端。
 import argparse
 import asyncio
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from asyncua import Client, Node, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
-DEFAULT_CERT = "certs/client_cert.pem"
-DEFAULT_KEY = "certs/client_key.pem"
-DEFAULT_SERVER_CERT = "certs/server_cert.pem"
+TEST_CERTS = Path(__file__).resolve().parents[1] / "hda_509" / "test_material" / "certs"
+DEFAULT_CERT = TEST_CERTS / "client_cert.pem"
+DEFAULT_KEY = TEST_CERTS / "client_key.pem"
+DEFAULT_SERVER_CERT = TEST_CERTS / "server_cert.pem"
 
 AGG_IDS = {
     "Average": ua.ObjectIds.AggregateFunction_Average,

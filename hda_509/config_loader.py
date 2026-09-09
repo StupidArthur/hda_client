@@ -56,4 +56,11 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
             raise ValueError(f"nodes[{i}] change=false 时必须提供 default")
 
     logger.info("组态加载成功: %s", path)
+    # Security files belong to the configuration document, rather than the
+    # caller's working directory. This keeps a copied configuration portable.
+    for key in ("cert", "private_key", "trust_store"):
+        value = cfg.get(key)
+        if value:
+            candidate = Path(value)
+            cfg[key] = str(candidate if candidate.is_absolute() else path.parent / candidate)
     return cfg

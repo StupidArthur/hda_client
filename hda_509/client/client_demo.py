@@ -5,14 +5,20 @@
 读取多个节点并写入一个可写节点后再读回，验证读写全链路。
 """
 import asyncio
+from pathlib import Path
 
 from asyncua import Client, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
 URL = "opc.tcp://127.0.0.1:48620/ua_mocker/"
-SERVER_CERT = "certs/server_cert.pem"
-CLIENT_CERT = "certs/client2_cert.pem"
-CLIENT_KEY = "certs/client2_key.pem"
+
+# The repository keeps test-only credentials outside the client package.
+# A real delivery contains only this client's certificate, private key and
+# the server certificate in a customer-controlled directory.
+TEST_CERTS = Path(__file__).resolve().parents[1] / "test_material" / "certs"
+SERVER_CERT = TEST_CERTS / "server_cert.pem"
+CLIENT_CERT = TEST_CERTS / "client2_cert.pem"
+CLIENT_KEY = TEST_CERTS / "client2_key.pem"
 
 
 async def main() -> None:

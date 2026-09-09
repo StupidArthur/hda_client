@@ -3,14 +3,16 @@
 验证客户端：使用 X.509 客户端证书 + Basic256Sha256 连接服务端，并读取节点值。
 """
 import asyncio
+from pathlib import Path
 
 from asyncua import Client, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
 URL = "opc.tcp://127.0.0.1:48620/ua_mocker/"
-SERVER_CERT = "certs/server_cert.pem"
-CLIENT_CERT = "certs/client_cert.pem"
-CLIENT_KEY = "certs/client_key.pem"
+CERTS = Path(__file__).resolve().parent / "certs"
+SERVER_CERT = CERTS / "server_cert.pem"
+CLIENT_CERT = CERTS / "client_cert.pem"
+CLIENT_KEY = CERTS / "client_key.pem"
 NODES = [
     "ns=1;s=int32_ch_1",
     "ns=1;s=double_wr_1",
