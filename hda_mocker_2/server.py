@@ -9,7 +9,7 @@ from asyncua import Server, ua
 
 from config import Settings
 from history import AggregateHistoryManager, VirtualHistoryStorage
-from model import NodeSpec, build_specs, realtime_is_bad, value_at
+from model import NodeSpec, build_specs, load_replay_csv, realtime_is_bad, value_at
 
 
 def normalize_write_timestamp(value: ua.DataValue) -> ua.DataValue:
@@ -52,12 +52,19 @@ async def run(settings: Settings) -> None:
         settings.bad_count,
     )
 
+    replay_tags = None
+    if settings.replay_csv:
+        replay_tags = load_replay_csv(settings.replay_csv)
+        for tag in replay_tags:
+            specs.append(NodeSpec(tag.node_id, ua.VariantType.Double, 0.0, False, "replay"))
+        print(f"Replay: {len(replay_tags)} 个位号 from {settings.replay_csv}")
+
     server = Server()
     await server.init()
     server.set_endpoint(f"opc.tcp://{settings.host}:{settings.port}/hda-mocker/")
     namespace = await server.register_namespace(settings.namespace_uri)
 
-    storage = VirtualHistoryStorage(specs, settings.history_length, settings.query_duration, settings.page_size, settings.interval, settings.read_timeout)
+    storage = VirtualHistoryStorage(specs, settings.history_length, settings.query_duration, settings.page_size, settings.interval, settings.read_timeout, replay_tags)
     server.iserver.history_manager = AggregateHistoryManager(server.iserver, storage)
 
     root = await server.nodes.objects.add_object(namespace, "HDA_Mocker")
@@ -67,10 +74,15 @@ async def run(settings: Settings) -> None:
         "static": await root.add_object(namespace, "StaticNodes"),
         "bad_realtime": await root.add_object(namespace, "BadRealtimeNodes"),
     }
+    if replay_tags:
+        folders["replay"] = await root.add_object(namespace, "QANodes")
+    replay_nodes = []
     realtime_nodes = []
 
     for spec in specs:
-        if spec.node_id.startswith("inter_"):
+        if spec.mode == "replay":
+            group = "replay"
+        elif spec.node_id.startswith("inter_"):
             group = "type"
         elif spec.node_id.startswith("dynamic_"):
             group = "dynamic"
@@ -93,11 +105,28 @@ async def run(settings: Settings) -> None:
         await server.historize_node_data_change(node)
         if spec.mode in {"sawtooth", "bad_realtime"}:
             realtime_nodes.append((node, spec))
+        if spec.mode == "replay":
+            replay_nodes.append(node)
 
     print(f"HDA Mocker: opc.tcp://{settings.host}:{settings.port}/hda-mocker/")
     print(f"Namespace: ns={namespace} ({settings.namespace_uri})")
     print(f"Nodes: {len(specs)}; history={settings.history_length}s; page={settings.page_size}")
     async with server:
+        # Replay 节点实时读 → 数据窗内最近点(末点)
+        for node in replay_nodes:
+            points = storage.replay.get(str(node.nodeid.Identifier))
+            if not points:
+                continue
+            last_ts, last_value, last_status = points[-1]
+
+            def _replay_current(_nid, _attr, _pts=points, _lts=last_ts, _lv=last_value, _ls=last_status):
+                ts = datetime.fromtimestamp(_lts, timezone.utc)
+                if _lv is None:
+                    return ua.DataValue(ua.Variant(None), StatusCode=ua.StatusCode(_ls), SourceTimestamp=ts)
+                return ua.DataValue(ua.Variant(_lv, ua.VariantType.Double), StatusCode=ua.StatusCode(_ls), SourceTimestamp=ts)
+
+            server.set_attribute_value_callback(node.nodeid, _replay_current)
+
         updater = asyncio.create_task(update_realtime_nodes(realtime_nodes, settings))
         try:
             await asyncio.Event().wait()

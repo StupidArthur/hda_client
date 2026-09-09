@@ -1,0 +1,14 @@
+# QA 回放预设: 节点全部来自 replay_csv, 常规生成节点数量为 0
+type_nodes:
+  groups: 0
+
+dynamic_nodes:
+  count: 0
+
+static_nodes:
+  count: 0
+
+bad_realtime_nodes:
+  count: 0
+  good_duration: 9m
+  bad_duration: 1m

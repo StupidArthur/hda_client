@@ -1,21 +1,23 @@
 from __future__ import annotations
 
+import bisect
 import time
 from datetime import datetime, timedelta, timezone
 from asyncua import ua
 from asyncua.server.history import HistoryManager
 
-from model import NodeSpec, sawtooth_stats, value_at
+from model import NodeSpec, ReplayPoint, ReplayTag, sawtooth_stats, value_at
 
 
 class VirtualHistoryStorage:
-    def __init__(self, specs: list[NodeSpec], history_length: int, query_duration: int, page_size: int, interval: int = 1, read_timeout: int = 20):
+    def __init__(self, specs: list[NodeSpec], history_length: int, query_duration: int, page_size: int, interval: int = 1, read_timeout: int = 20, replay: list[ReplayTag] | None = None):
         self.specs = {spec.node_id: spec for spec in specs}
         self.history_length = history_length
         self.query_duration = query_duration
         self.page_size = page_size
         self.interval = max(1, int(interval))
         self.read_timeout = max(1.0, float(read_timeout))
+        self.replay = {t.node_id: t.points for t in replay} if replay else {}
 
     async def init(self):
         pass
@@ -49,6 +51,8 @@ class VirtualHistoryStorage:
         return start, end, forward
 
     def generate(self, node_id, start, end, limit: int | None, apply_duration: bool = True):
+        if str(node_id.Identifier) in self.replay:
+            return self._generate_replay(node_id, start, end, limit)
         spec = self.specs.get(str(node_id.Identifier))
         if spec is None:
             return [], None
@@ -96,7 +100,91 @@ class VirtualHistoryStorage:
             continuation = end + timedelta(seconds=1)
         return points, continuation
 
+    def _replay_window(self, start, end):
+        """回放节点用绝对查询窗口∩数据窗口, 不依赖 now 夹取。返回 (s_ts, e_ts, forward)。"""
+        pts = list(self.replay.values())[0] if self.replay else []
+        data_min = min((p[0] for tags in self.replay.values() for p in tags[:1]), default=0)
+        data_max = max((p[0] for tags in self.replay.values() for p in tags[-1:]), default=0)
+        s = start.timestamp() if start and start > ua.get_win_epoch() else data_min
+        e = end.timestamp() if end and end > ua.get_win_epoch() else data_max
+        forward = s <= e
+        return max(s, data_min), min(e, data_max), forward
+
+    def _generate_replay(self, node_id, start, end, limit):
+        points = self.replay.get(str(node_id.Identifier))
+        if not points:
+            return [], None
+        s, e, forward = self._replay_window(start, end)
+        if not forward:
+            s, e = e, s
+        lo = bisect.bisect_left(points, (s,))
+        hi = bisect.bisect_right(points, (e, float("inf"), 0))
+        window = points[lo:hi]
+        if not forward:
+            window = list(reversed(window))
+        max_items = limit or self.page_size
+        window = window[:max_items]
+        out = []
+        for ts, value, status in window:
+            if value is None:
+                dv = ua.DataValue(ua.Variant(None), StatusCode=ua.StatusCode(status),
+                                  SourceTimestamp=datetime.fromtimestamp(ts, timezone.utc))
+            else:
+                dv = ua.DataValue(ua.Variant(value, ua.VariantType.Double), StatusCode=ua.StatusCode(status),
+                                  SourceTimestamp=datetime.fromtimestamp(ts, timezone.utc))
+            out.append(dv)
+        return out, None
+
+    def _aggregate_replay(self, node_id, start, end, interval_ms, aggregate_id):
+        points = self.replay.get(str(node_id.Identifier))
+        if not points:
+            return []
+        s, e, forward = self._replay_window(start, end)
+        if not forward:
+            s, e = e, s
+        lo = bisect.bisect_left(points, (s,))
+        hi = bisect.bisect_right(points, (e, float("inf"), 0))
+        window = points[lo:hi]
+        if not window:
+            return []
+
+        interval = interval_ms / 1000.0
+        output = []
+        ids = ua.ObjectIds
+        idx = 0
+        bucket_start = window[0][0]
+        while idx < len(window) and bucket_start <= e:
+            bucket_end = bucket_start + interval
+            bucket_vals = []
+            while idx < len(window) and window[idx][0] < bucket_end:
+                ts, value, status = window[idx]
+                if value is not None and status == 0:
+                    bucket_vals.append(value)
+                idx += 1
+            if bucket_vals:
+                if aggregate_id == ids.AggregateFunction_Count:
+                    result_value = len(bucket_vals)
+                elif aggregate_id in (ids.AggregateFunction_Average, ids.AggregateFunction_TimeAverage):
+                    result_value = sum(bucket_vals) / len(bucket_vals)
+                elif aggregate_id == ids.AggregateFunction_Minimum:
+                    result_value = min(bucket_vals)
+                elif aggregate_id == ids.AggregateFunction_Maximum:
+                    result_value = max(bucket_vals)
+                else:
+                    return None
+                output.append(ua.DataValue(
+                    ua.Variant(result_value),
+                    StatusCode=ua.StatusCode(ua.StatusCodes.Good),
+                    SourceTimestamp=datetime.fromtimestamp(bucket_start, timezone.utc),
+                ))
+            bucket_start = bucket_end
+        if not forward:
+            output.reverse()
+        return output
+
     def aggregate(self, node_id, start, end, interval_ms: float, aggregate_id: int):
+        if str(node_id.Identifier) in self.replay:
+            return self._aggregate_replay(node_id, start, end, interval_ms, aggregate_id)
         spec = self.specs.get(str(node_id.Identifier))
         if spec is None:
             return []

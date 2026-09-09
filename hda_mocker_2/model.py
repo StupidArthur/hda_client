@@ -82,3 +82,43 @@ def value_at(spec: NodeSpec, timestamp: float) -> Any:
 def realtime_is_bad(timestamp: float, good_duration: int, bad_duration: int) -> bool:
     cycle = good_duration + bad_duration
     return cycle > 0 and int(timestamp) % cycle >= good_duration
+
+
+# ReplayPoint: 固定历史回放点(值可为 None=无值, status 为 OPC UA StatusCode uint32)
+ReplayPoint = tuple[float, float | None, int]
+
+
+@dataclass(frozen=True)
+class ReplayTag:
+    node_id: str
+    points: list[ReplayPoint]  # 按时间升序
+
+
+def load_replay_csv(csv_path: str) -> list[ReplayTag]:
+    """加载外部数据集 CSV → 每位号一条回放序列(按时间升序)。
+
+    CSV 列: scenario,tag,ts_us,value,value_kind,quality
+    value_kind: finite/nan/pos_inf/neg_inf/null; null → 值 None
+    quality: OPC UA StatusCode 有符号 int
+    """
+    import csv as _csv
+
+    by_tag: dict[str, list[ReplayPoint]] = {}
+    with open(csv_path, encoding="utf-8", newline="") as fh:
+        for row in _csv.DictReader(fh):
+            tag = row["tag"]
+            ts = int(row["ts_us"]) / 1e6
+            kind = row["value_kind"]
+            if kind == "null":
+                value: float | None = None
+            else:
+                value = float(row["value"])
+            quality = int(row["quality"]) & 0xFFFFFFFF
+            by_tag.setdefault(tag, []).append((ts, value, quality))
+
+    tags: list[ReplayTag] = []
+    for tag in sorted(by_tag):
+        pts = by_tag[tag]
+        pts.sort(key=lambda p: p[0])
+        tags.append(ReplayTag(tag, pts))
+    return tags
