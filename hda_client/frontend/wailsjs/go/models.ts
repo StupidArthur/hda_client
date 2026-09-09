@@ -1,5 +1,66 @@
 export namespace hda {
 	
+	export class AnomalyRow {
+	    kind: string;
+	    node: string;
+	    start: string;
+	    end: string;
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnomalyRow(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.kind = source["kind"];
+	        this.node = source["node"];
+	        this.start = source["start"];
+	        this.end = source["end"];
+	        this.count = source["count"];
+	    }
+	}
+	export class AnomalyPage {
+	    rows: AnomalyRow[];
+	    total: number;
+	    bad: number;
+	    uncertain: number;
+	    good_empty: number;
+	    anomaly_records: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnomalyPage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.rows = this.convertValues(source["rows"], AnomalyRow);
+	        this.total = source["total"];
+	        this.bad = source["bad"];
+	        this.uncertain = source["uncertain"];
+	        this.good_empty = source["good_empty"];
+	        this.anomaly_records = source["anomaly_records"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class AppSettings {
 	    url: string;
 	    ns: number;
@@ -10,6 +71,7 @@ export namespace hda {
 	    csv_nodes: string[];
 	    end_time: string;
 	    duration_sec: number;
+	    page_size: number;
 	    output: string;
 	
 	    static createFrom(source: any = {}) {
@@ -27,6 +89,7 @@ export namespace hda {
 	        this.csv_nodes = source["csv_nodes"];
 	        this.end_time = source["end_time"];
 	        this.duration_sec = source["duration_sec"];
+	        this.page_size = source["page_size"];
 	        this.output = source["output"];
 	    }
 	}
@@ -117,6 +180,7 @@ export namespace hda {
 	    tags: string[];
 	    end_time: string;
 	    duration_sec: number;
+	    page_size: number;
 	    concurrency: number;
 	
 	    static createFrom(source: any = {}) {
@@ -130,6 +194,7 @@ export namespace hda {
 	        this.tags = source["tags"];
 	        this.end_time = source["end_time"];
 	        this.duration_sec = source["duration_sec"];
+	        this.page_size = source["page_size"];
 	        this.concurrency = source["concurrency"];
 	    }
 	}

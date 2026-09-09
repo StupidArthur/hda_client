@@ -19,6 +19,7 @@ type QueryConfig struct {
 	Tags        []string `json:"tags"`
 	EndTime     string   `json:"end_time"` // RFC3339 本地时间, 如 2026-09-04T10:00:00
 	DurationSec int64    `json:"duration_sec"`
+	PageSize    uint32   `json:"page_size"`
 	Concurrency int      `json:"concurrency"`
 }
 
@@ -36,6 +37,12 @@ func (c QueryConfig) NormalizeAndValidate() (QueryConfig, error) {
 	}
 	if c.Concurrency == 0 {
 		c.Concurrency = defaultConcurrency
+	}
+	if c.PageSize == 0 {
+		c.PageSize = 5000
+	}
+	if c.PageSize > 1000000 {
+		return QueryConfig{}, fmt.Errorf("单页上限必须在 1-1000000 之间")
 	}
 	if c.Concurrency < 1 || c.Concurrency > maxConcurrency {
 		return QueryConfig{}, fmt.Errorf("并发数必须在 1-%d 之间", maxConcurrency)
@@ -149,6 +156,23 @@ type TrendSeries struct {
 	Points []TrendPoint `json:"points"`
 }
 
+type AnomalyRow struct {
+	Kind  string `json:"kind"`
+	Node  string `json:"node"`
+	Start string `json:"start"`
+	End   string `json:"end"`
+	Count int64  `json:"count"`
+}
+
+type AnomalyPage struct {
+	Rows           []AnomalyRow `json:"rows"`
+	Total          int64        `json:"total"`
+	Bad            int64        `json:"bad"`
+	Uncertain      int64        `json:"uncertain"`
+	GoodEmpty      int64        `json:"good_empty"`
+	AnomalyRecords int64        `json:"anomaly_records"`
+}
+
 type TagExpressionPreview struct {
 	Count  int    `json:"count"`
 	First  string `json:"first"`
@@ -174,6 +198,7 @@ type AppSettings struct {
 	CSVNodes    []string `json:"csv_nodes"`
 	EndTime     string   `json:"end_time"`
 	DurationSec int64    `json:"duration_sec"`
+	PageSize    uint32   `json:"page_size"`
 	Output      string   `json:"output"`
 }
 

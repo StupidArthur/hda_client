@@ -15,6 +15,8 @@ export function ParseTagCSV(arg1:string):Promise<Array<string>>;
 
 export function PreviewTagExpression(arg1:string):Promise<hda.TagExpressionPreview>;
 
+export function ReadParquetAnomalyPage(arg1:string,arg2:string,arg3:string,arg4:number,arg5:number):Promise<hda.AnomalyPage>;
+
 export function ReadParquetNodesPage(arg1:string,arg2:Array<string>,arg3:number,arg4:number):Promise<hda.ParquetPage>;
 
 export function ReadParquetPage(arg1:string,arg2:string,arg3:number,arg4:number):Promise<hda.ParquetPage>;

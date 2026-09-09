@@ -26,6 +26,10 @@ export function PreviewTagExpression(arg1) {
   return window['go']['bindings']['QueryBinding']['PreviewTagExpression'](arg1);
 }
 
+export function ReadParquetAnomalyPage(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['bindings']['QueryBinding']['ReadParquetAnomalyPage'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function ReadParquetNodesPage(arg1, arg2, arg3, arg4) {
   return window['go']['bindings']['QueryBinding']['ReadParquetNodesPage'](arg1, arg2, arg3, arg4);
 }

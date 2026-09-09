@@ -2,14 +2,14 @@ import React, {ChangeEvent, useEffect, useMemo, useRef, useState} from 'react'
 import ReactMarkdown from 'react-markdown'
 import './style.css'
 import userGuide from './user-guide.md?raw'
-import {CancelQuery, ChooseParquetFile, ExpandTagExpression, ParseTagCSV, PreviewTagExpression, ReadParquetNodesPage, ReadParquetSelectedSummary, ReadParquetSummary, ReadParquetTrend, StartParquetQuery} from '../wailsjs/go/bindings/QueryBinding'
+import {CancelQuery, ChooseParquetFile, ExpandTagExpression, ParseTagCSV, PreviewTagExpression, ReadParquetAnomalyPage, ReadParquetNodesPage, ReadParquetSelectedSummary, ReadParquetSummary, ReadParquetTrend, StartParquetQuery} from '../wailsjs/go/bindings/QueryBinding'
 import {SaveSettings, LoadSettings} from '../wailsjs/go/bindings/SettingsBinding'
 import {Connect, Disconnect} from '../wailsjs/go/bindings/ConnectionBinding'
 import {EventsOff, EventsOn} from '../wailsjs/runtime/runtime'
 import {hda} from '../wailsjs/go/models'
 
 type Mode = 'direct' | 'expression' | 'csv'
-type Tab = 'query' | 'analysis' | 'guide'
+type Tab = 'query' | 'anomaly' | 'analysis' | 'guide'
 type AnalysisView = 'chart' | 'table'
 interface Progress { done: number; total: number; records: number }
 interface ParquetResult { path: string; nodes: number; records: number; good: number; bad: number; uncertain: number; no_value: number; elapsed_ms: number; rate: number }
@@ -19,8 +19,11 @@ interface ExpressionPreview { count: number; first: string; second: string; last
 interface ParquetSummary { records: number; good: number; bad: number; uncertain: number; no_value: number; start: string; end: string; nodes: string[] }
 interface TrendPoint { timestamp: string; value: number; min: number; max: number }
 interface TrendSeries { node: string; points: TrendPoint[] }
+interface AnomalyRow { kind: string; node: string; start: string; end: string; count: number }
+interface AnomalyPage { rows: AnomalyRow[]; total: number; bad: number; uncertain: number; good_empty: number; anomaly_records: number }
 
 const PAGE_SIZE = 500
+const ANOMALY_PAGE_SIZE = 200
 // 输出框默认值: .\data\history_YYYYMMDD_HHMMSS.parquet(相对路径由后端按 exe 目录解析)
 const defaultOutputPattern = /^\.\\data\\history_\d{8}_\d{6}(?:_\d{3})?\.parquet$/
 // 旧版本保存对话框默认落在桌面/文档的 history.parquet(无时间戳), 视为过期值
@@ -60,6 +63,13 @@ function formatTime(timestamp: string) {
   const p = (n: number, width = 2) => String(n).padStart(width, '0')
   return `${date.getFullYear()}-${p(date.getMonth()+1)}-${p(date.getDate())} ${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}.${p(date.getMilliseconds(), 3)}`
 }
+function anomalyDuration(start: string, end: string) {
+  const seconds = Math.max(0, Math.round((new Date(end).getTime()-new Date(start).getTime())/1000))
+  if (seconds === 0) return '单点'
+  if (seconds < 60) return `${seconds} 秒`
+  if (seconds < 3600) return `${Math.floor(seconds/60)} 分 ${seconds%60} 秒`
+  return `${Math.floor(seconds/3600)} 时 ${Math.floor(seconds%3600/60)} 分`
+}
 
 const chartColors = ['#2563eb', '#dc2626', '#059669', '#d97706', '#7c3aed', '#0891b2', '#db2777', '#4b5563']
 function TrendChart({series}: {series: TrendSeries[]}) {
@@ -92,12 +102,12 @@ function TrendChart({series}: {series: TrendSeries[]}) {
   </svg><div className="legend">{series.map((s,i) => <span key={s.node}><i style={{background: chartColors[i%chartColors.length]}}/>{s.node}</span>)}</div></div>
 }
 
-function Pager({offset, total, onPage}: {offset: number; total: number; onPage: (offset: number) => void}) {
-  const pages = Math.max(1, Math.ceil(total/PAGE_SIZE)), current = Math.floor(offset/PAGE_SIZE)+1
+function Pager({offset, total, onPage, pageSize=PAGE_SIZE}: {offset: number; total: number; onPage: (offset: number) => void; pageSize?: number}) {
+  const pages = Math.max(1, Math.ceil(total/pageSize)), current = Math.floor(offset/pageSize)+1
   const [value, setValue] = useState(String(current))
   useEffect(() => setValue(String(current)), [current])
-  const go = () => { const page = Math.max(1, Math.min(pages, Number.parseInt(value)||1)); setValue(String(page)); onPage((page-1)*PAGE_SIZE) }
-  return <div className="pager"><span>{total ? offset+1 : 0}–{Math.min(offset+PAGE_SIZE,total)} / {total.toLocaleString()}</span><button disabled={current<=1} onClick={() => onPage(offset-PAGE_SIZE)}>上一页</button><label>第 <input type="number" min="1" max={pages} value={value} onChange={e => setValue(e.target.value)} onBlur={go} onKeyDown={e => {if(e.key==='Enter') go()}}/> / {pages.toLocaleString()} 页</label><button disabled={current>=pages} onClick={() => onPage(offset+PAGE_SIZE)}>下一页</button></div>
+  const go = () => { const page = Math.max(1, Math.min(pages, Number.parseInt(value)||1)); setValue(String(page)); onPage((page-1)*pageSize) }
+  return <div className="pager"><span>{total ? offset+1 : 0}–{Math.min(offset+pageSize,total)} / {total.toLocaleString()}</span><button disabled={current<=1} onClick={() => onPage(offset-pageSize)}>上一页</button><label>第 <input type="number" min="1" max={pages} value={value} onChange={e => setValue(e.target.value)} onBlur={go} onKeyDown={e => {if(e.key==='Enter') go()}}/> / {pages.toLocaleString()} 页</label><button disabled={current>=pages} onClick={() => onPage(offset+pageSize)}>下一页</button></div>
 }
 
 export default function App() {
@@ -114,6 +124,7 @@ export default function App() {
   const [endTime, setEndTime] = useState(nowStamp().end)
   const [durationValue, setDurationValue] = useState(1)
   const [durationUnit, setDurationUnit] = useState<DurationUnit>('时')
+  const [pageSize, setPageSize] = useState(5000)
   const [output, setOutput] = useState(defaultOutput())
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<Progress | null>(null)
@@ -121,6 +132,12 @@ export default function App() {
   const [, setTick] = useState(0)
   const [status, setStatus] = useState('')
   const [lastResult, setLastResult] = useState<ParquetResult | null>(null)
+  const [anomalyFile, setAnomalyFile] = useState('')
+  const [anomalyKind, setAnomalyKind] = useState('')
+  const [anomalySearch, setAnomalySearch] = useState('')
+  const [anomalyPage, setAnomalyPage] = useState<AnomalyPage | null>(null)
+  const [anomalyOffset, setAnomalyOffset] = useState(0)
+  const [anomalyLoading, setAnomalyLoading] = useState(false)
   const [analysisFile, setAnalysisFile] = useState('')
   const [loadedAnalysisFile, setLoadedAnalysisFile] = useState('')
   const [analysisView, setAnalysisView] = useState<AnalysisView>('chart')
@@ -161,6 +178,7 @@ export default function App() {
       if (s.csv_nodes?.length) setCSVNodes(s.csv_nodes)
       // 截止时间不恢复: 每次打开都取软件启动时的当前时间
       if (s.duration_sec > 0) { const [v, u] = splitDuration(s.duration_sec); setDurationValue(v); setDurationUnit(u) }
+      if (s.page_size > 0) setPageSize(s.page_size)
       // 保存的是默认路径模式或旧版弹窗默认值时, 恢复为新的时间戳默认, 避免覆盖旧文件
       if (s.output) setOutput(defaultOutputPattern.test(s.output) || staleOutputPattern.test(s.output) ? defaultOutput() : s.output)
     }).catch(error => setStatus(`加载配置失败：${error}`))
@@ -171,6 +189,7 @@ export default function App() {
       setOutput(prev => (defaultOutputPattern.test(prev) ? defaultOutput() : prev))
       if ('canceled' in result) { setStatus('查询已取消'); return }
       setLastResult(result); setStatus(`完成：${result.records.toLocaleString()} 条，${result.rate.toFixed(0)} 点/s · ${result.path}`)
+      loadAnomalies(result.path, 0, '', '')
     }
     const onError = (message: string) => {
       setBusy(false); setStarted(0); setStatus(message)
@@ -222,12 +241,12 @@ export default function App() {
     }
     if (!queryNodes.length) { setStatus('请先输入位号'); return }
     const path = output.trim() // 留空由后端落到默认 data/history_时间戳.parquet
-    const cfg = new hda.QueryConfig({url, ns, tags: queryNodes, end_time: endTime, duration_sec: durationSec, concurrency: 16})
+    const cfg = new hda.QueryConfig({url, ns, tags: queryNodes, end_time: endTime, duration_sec: durationSec, page_size: Math.max(1, Math.round(pageSize)), concurrency: 16})
     setBusy(true); setProgress({done: 0, total: queryNodes.length, records: 0}); setStarted(Date.now()); setStatus('查询中…')
     try {
       await StartParquetQuery(cfg, path)
       // 持久化界面输入现场(表达式原文等), 而非展开后的位号列表
-      SaveSettings(new hda.AppSettings({url, ns, mode, direct, expression, csv_name: csvName, csv_nodes: csvNodes, end_time: endTime, duration_sec: durationSec, output: path})).catch(() => {})
+      SaveSettings(new hda.AppSettings({url, ns, mode, direct, expression, csv_name: csvName, csv_nodes: csvNodes, end_time: endTime, duration_sec: durationSec, page_size: Math.max(1, Math.round(pageSize)), output: path})).catch(() => {})
     } catch (e: any) { setBusy(false); setStarted(0); setStatus(`无法开始：${e}`) }
   }
   async function importCSV(e: ChangeEvent<HTMLInputElement>) {
@@ -257,6 +276,15 @@ export default function App() {
     } catch (e: any) { setStatus(`读取失败：${e}`) } finally { setAnalysisLoading(false) }
   }
   async function chooseAnalysis() { try { const file = await ChooseParquetFile(); if (file) await loadAnalysis(file) } catch (e: any) { setStatus(String(e)) } }
+  async function loadAnomalies(file = anomalyFile, nextOffset = anomalyOffset, kind = anomalyKind, search = anomalySearch) {
+    if (!file) return
+    setAnomalyLoading(true)
+    try {
+      const result = await ReadParquetAnomalyPage(file, kind, search, nextOffset, ANOMALY_PAGE_SIZE) as unknown as AnomalyPage
+      setAnomalyFile(file); setAnomalyPage(result); setAnomalyOffset(nextOffset); setStatus('')
+    } catch (error: any) { setStatus(`异常值读取失败：${error}`) } finally { setAnomalyLoading(false) }
+  }
+  async function chooseAnomalyFile() { try { const file = await ChooseParquetFile(); if (file) { setAnomalyKind(''); setAnomalySearch(''); await loadAnomalies(file,0,'','') } } catch (e: any) { setStatus(String(e)) } }
   function toggleAnalysisNode(node: string) {
     setSelectedNodes(current => current.includes(node) ? current.filter(item => item !== node) : [...current, node])
   }
@@ -284,12 +312,12 @@ export default function App() {
       {connected
         ? <button className="conn on" onClick={disconnect}>已连接 · 断开</button>
         : <button className="conn" disabled={connecting} onClick={connect}>{connecting ? '连接中…' : '连接'}</button>}
-      <span className="watermark">v1.0 designed by @yuzechao Industrial AI</span>
+      <span className="watermark">v1.1 designed by @yuzechao Industrial AI</span>
     </header>
-    <nav className="tabs"><button className={tab === 'query' ? 'active' : ''} onClick={() => setTab('query')}>查询</button><button className={tab === 'analysis' ? 'active' : ''} onClick={() => setTab('analysis')}>分析</button><button className={tab === 'guide' ? 'active' : ''} onClick={() => setTab('guide')}>使用说明</button></nav>
+    <nav className="tabs"><button className={tab === 'query' ? 'active' : ''} onClick={() => setTab('query')}>查询</button><button className={tab === 'anomaly' ? 'active' : ''} onClick={() => { setTab('anomaly'); if (!anomalyFile && lastResult) loadAnomalies(lastResult.path,0,'','') }}>异常值{anomalyPage && anomalyPage.anomaly_records > 0 && <em>{anomalyPage.anomaly_records.toLocaleString()}</em>}</button><button className={tab === 'analysis' ? 'active' : ''} onClick={() => setTab('analysis')}>数据详情</button><button className={tab === 'guide' ? 'active' : ''} onClick={() => setTab('guide')}>使用说明</button></nav>
     {tab === 'query' ? <section className="content query">
       <h2 className="section-title">查询配置</h2>
-      <div className="time"><label>截止 <input type="text" value={endTime} onChange={e => setEndTime(e.target.value)} placeholder="2026-09-07T16:30:00" title="格式 yyyy-MM-ddTHH:mm:ss，与配置文件一致"/></label><label>时长 <input type="number" min="1" value={durationValue} onChange={e => setDurationValue(Number(e.target.value))}/><select value={durationUnit} onChange={e => setDurationUnit(e.target.value as DurationUnit)}>{(['秒', '分', '时', '天'] as DurationUnit[]).map(u => <option key={u} value={u}>{u}</option>)}</select></label></div>
+      <div className="time"><label>截止 <input type="text" value={endTime} onChange={e => setEndTime(e.target.value)} placeholder="2026-09-07T16:30:00" title="格式 yyyy-MM-ddTHH:mm:ss，与配置文件一致"/></label><label>时长 <input type="number" min="1" value={durationValue} onChange={e => setDurationValue(Number(e.target.value))}/><select value={durationUnit} onChange={e => setDurationUnit(e.target.value as DurationUnit)}>{(['秒', '分', '时', '天'] as DurationUnit[]).map(u => <option key={u} value={u}>{u}</option>)}</select></label><label>单页上限 <input type="number" min="1" max="1000000" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}/></label></div>
       <div className="output"><label>输出路径</label><input value={output} onChange={e => setOutput(e.target.value)} placeholder="输出 Parquet 文件"/></div>
       <h2 className="section-title">查询位号</h2>
       <div className="mode-tabs"><button className={mode==='direct'?'active':''} onClick={() => setMode('direct')}>直接输入</button><button className={mode==='expression'?'active':''} onClick={() => setMode('expression')}>表达式</button><button className={mode==='csv'?'active':''} onClick={() => setMode('csv')}>CSV 导入</button></div>
@@ -300,8 +328,16 @@ export default function App() {
       {mode === 'csv' && <div className="import"><span>{csvName ? `${csvName} · ${nodes.length.toLocaleString()} 个位号` : '选择一个 node 列 CSV 文件'}</span><button onClick={() => inputRef.current?.click()}>选择 CSV</button><button className="link" onClick={downloadTemplate}>下载模板</button></div>}
       <input ref={inputRef} type="file" accept=".csv,text/csv" hidden onChange={importCSV}/>
       {busy ? <button className="run cancel" onClick={() => CancelQuery()}>取消查询</button> : <button className="run" onClick={query}>查询</button>}
-      {(busy || lastResult) && <div className="progress"><div><i style={{width: `${progress && progress.total ? progress.done / progress.total * 100 : 0}%`}}/></div><span>{progress?.done ?? 0}/{progress?.total ?? 0} 个位号</span><span>{(progress?.records ?? lastResult?.records ?? 0).toLocaleString()} 条</span>{!busy && lastResult && <><span>Good {lastResult.good.toLocaleString()}</span><span>Bad {lastResult.bad.toLocaleString()}</span>{lastResult.uncertain > 0 && <span>Uncertain {lastResult.uncertain.toLocaleString()}</span>}{lastResult.no_value > 0 && <span>无值 {lastResult.no_value.toLocaleString()}</span>}</>}<span>{(busy ? elapsed : (lastResult?.elapsed_ms ?? 0) / 1000).toFixed(2)}s</span><span>{(busy ? rate : lastResult?.rate ?? 0).toFixed(0)} 点/s</span></div>}
-      {lastResult && <button className="link analyze" onClick={() => { setTab('analysis'); loadAnalysis(lastResult.path) }}>查看结果</button>}
+      {(busy || lastResult) && <div className="progress"><div><i style={{width: `${progress && progress.total ? progress.done / progress.total * 100 : 0}%`}}/></div><span>{progress?.done ?? 0}/{progress?.total ?? 0} 个位号</span><span>{(progress?.records ?? lastResult?.records ?? 0).toLocaleString()} 条</span>{!busy && lastResult && <><span>Good {lastResult.good.toLocaleString()}</span><span>Bad {lastResult.bad.toLocaleString()}</span><span>Uncertain {lastResult.uncertain.toLocaleString()}</span>{lastResult.no_value > 0 && <span>无值 {lastResult.no_value.toLocaleString()}</span>}</>}<span>{(busy ? elapsed : (lastResult?.elapsed_ms ?? 0) / 1000).toFixed(2)}s</span><span>{(busy ? rate : lastResult?.rate ?? 0).toFixed(0)} 点/s</span></div>}
+      {lastResult && <div className="result-actions"><button className="link analyze anomaly-link" onClick={() => { setTab('anomaly'); loadAnomalies(lastResult.path,0,'','') }}>查看异常值</button><button className="link analyze" onClick={() => { setTab('analysis'); loadAnalysis(lastResult.path) }}>查看数据详情</button></div>}
+    </section> : tab === 'anomaly' ? <section className="content anomaly-page">
+      <div className="output"><input value={anomalyFile} onChange={e => setAnomalyFile(e.target.value)} onKeyDown={e => { if(e.key==='Enter') loadAnomalies(anomalyFile,0) }} placeholder="选择 Parquet 文件，或输入路径后回车"/><button onClick={chooseAnomalyFile}>选择</button></div>
+      {anomalyPage && <div className="anomaly-content">
+        <div className="anomaly-toolbar"><div className="anomaly-filters">{[['','全部'],['Bad',`Bad ${anomalyPage.bad.toLocaleString()}`],['Uncertain',`Uncertain ${anomalyPage.uncertain.toLocaleString()}`],['Good 空值',`Good 空值 ${anomalyPage.good_empty.toLocaleString()}`]].map(([value,label]) => <button key={value} className={anomalyKind===value?'active':''} onClick={() => {setAnomalyKind(value); loadAnomalies(anomalyFile,0,value,anomalySearch)}}>{label}</button>)}</div><div className="anomaly-search"><input value={anomalySearch} onChange={e => setAnomalySearch(e.target.value)} onKeyDown={e => {if(e.key==='Enter') loadAnomalies(anomalyFile,0,anomalyKind,anomalySearch)}} placeholder="搜索位号"/><button onClick={() => loadAnomalies(anomalyFile,0,anomalyKind,anomalySearch)}>搜索</button></div></div>
+        {anomalyLoading && <div className="anomaly-loading">读取中…</div>}
+        <div className="anomaly-table-scroll"><table><thead><tr><th>类型</th><th>位号</th><th>开始时间</th><th>结束时间</th><th>持续时间</th><th>记录数</th></tr></thead><tbody>{anomalyPage.rows.map((row,index) => <tr key={`${row.node}-${row.start}-${index}`} className={row.kind==='Bad'?'quality-bad':row.kind==='Uncertain'?'quality-uncertain':'quality-empty'}><td>{row.kind}</td><td>{row.node}</td><td>{formatTime(row.start)}</td><td>{formatTime(row.end)}</td><td>{anomalyDuration(row.start,row.end)}</td><td>{row.count.toLocaleString()}</td></tr>)}</tbody></table>{!anomalyPage.rows.length && <div className="no-anomaly">未发现符合条件的异常值</div>}</div>
+        <Pager offset={anomalyOffset} total={anomalyPage.total} pageSize={ANOMALY_PAGE_SIZE} onPage={next => loadAnomalies(anomalyFile,next)}/>
+      </div>}
     </section> : tab === 'analysis' ? <section className="content analysis">
       <div className="output"><input value={analysisFile} onChange={e => setAnalysisFile(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') loadAnalysis(analysisFile) }} placeholder="选择 Parquet 文件，或输入路径后回车"/><button onClick={chooseAnalysis}>选择</button></div>
       {analysisSummary && <div className="analysis-shell">

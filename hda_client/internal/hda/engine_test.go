@@ -91,7 +91,7 @@ func TestQueryRunnerReturnsNodeError(t *testing.T) {
 
 type progressiveRunnerTestClient struct{ runnerTestClient }
 
-func (c *progressiveRunnerTestClient) ReadRawWithProgress(_ context.Context, nodeID string, _, _ time.Time, onPage func(int)) ([]DataPoint, error) {
+func (c *progressiveRunnerTestClient) ReadRawWithProgress(_ context.Context, nodeID string, _, _ time.Time, _ uint32, onPage func(int)) ([]DataPoint, error) {
 	c.mu.Lock()
 	c.calls[nodeID]++
 	data := append([]DataPoint(nil), c.results[nodeID]...)

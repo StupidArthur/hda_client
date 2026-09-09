@@ -19,11 +19,16 @@ type Client struct {
 
 // NewClient 建立到服务器的连接(免安全模式)。
 func NewClient(ctx context.Context, url string) (*Client, error) {
-	c, err := opcua.NewClient(url, opcua.SecurityMode(ua.MessageSecurityModeNone))
+	c, err := opcua.NewClient(url,
+		opcua.SecurityMode(ua.MessageSecurityModeNone),
+		opcua.DialTimeout(10*time.Second),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("创建客户端失败: %w", err)
 	}
-	if err := c.Connect(ctx); err != nil {
+	connectCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	if err := c.Connect(connectCtx); err != nil {
 		return nil, fmt.Errorf("连接失败: %w", err)
 	}
 	return &Client{c: c}, nil
@@ -40,12 +45,12 @@ func (c *Client) Close() error {
 
 // ReadRaw 读取单个位号的完整时间范围，并使用 continuation point 串行翻页。
 func (c *Client) ReadRaw(ctx context.Context, nodeID string, start, end time.Time) ([]hda.DataPoint, error) {
-	return c.ReadRawWithProgress(ctx, nodeID, start, end, nil)
+	return c.ReadRawWithProgress(ctx, nodeID, start, end, 5000, nil)
 }
 
 // ReadRawWithProgress keeps HistoryRead continuation points serial for this
 // node and reports each successfully decoded server page immediately.
-func (c *Client) ReadRawWithProgress(ctx context.Context, nodeID string, start, end time.Time, onPage func(records int)) ([]hda.DataPoint, error) {
+func (c *Client) ReadRawWithProgress(ctx context.Context, nodeID string, start, end time.Time, pageSize uint32, onPage func(records int)) ([]hda.DataPoint, error) {
 	id, err := ua.ParseNodeID(nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("无效 NodeID %q: %w", nodeID, err)
@@ -57,7 +62,7 @@ func (c *Client) ReadRawWithProgress(ctx context.Context, nodeID string, start, 
 		IsReadModified:   false,
 		StartTime:        start,
 		EndTime:          end,
-		NumValuesPerNode: 5000,
+		NumValuesPerNode: pageSize,
 		ReturnBounds:     false,
 	}
 	var previousContinuationPoint []byte
@@ -92,13 +97,17 @@ func (c *Client) ReadRawWithProgress(ctx context.Context, nodeID string, start, 
 			}
 			if hd != nil {
 				for _, dv := range hd.DataValues {
+					var rawValue interface{}
+					if dv.Value != nil {
+						rawValue = dv.Value.Value()
+					}
 					p := hda.DataPoint{
 						Time:     dv.SourceTimestamp.UTC(),
 						Quality:  qualityName(dv.Status),
-						HasValue: dv.Value != nil,
+						HasValue: rawValue != nil,
 					}
-					if dv.Value != nil {
-						value, err := toFloat(dv.Value.Value())
+					if rawValue != nil {
+						value, err := toFloat(rawValue)
 						if err != nil {
 							return nil, fmt.Errorf("位号 %q 在 %s 的值无法转为数值: %w", nodeID, p.Time.Format(time.RFC3339Nano), err)
 						}

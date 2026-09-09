@@ -79,7 +79,7 @@ func QueryRunner(
 				reported := false
 				if reader, ok := client.(ProgressiveHistoryClient); ok {
 					reported = true
-					data, err = reader.ReadRawWithProgress(ctx, j.nodeID, start, end, func(n int) {
+					data, err = reader.ReadRawWithProgress(ctx, j.nodeID, start, end, cfg.PageSize, func(n int) {
 						select {
 						case pageCh <- n:
 						case <-ctx.Done():
@@ -213,7 +213,7 @@ func QueryRunnerEach(ctx context.Context, client HistoryClient, cfg QueryConfig,
 				reported := false
 				if reader, ok := client.(ProgressiveHistoryClient); ok {
 					reported = true
-					data, readErr = reader.ReadRawWithProgress(ctx, j.nodeID, start, end, func(n int) {
+					data, readErr = reader.ReadRawWithProgress(ctx, j.nodeID, start, end, cfg.PageSize, func(n int) {
 						select {
 						case pageRecords <- n:
 						case <-ctx.Done():

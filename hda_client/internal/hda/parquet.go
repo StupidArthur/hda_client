@@ -351,3 +351,105 @@ func ReadParquetTrend(path string, selected []string, maxPoints int) ([]TrendSer
 	}
 	return out, nil
 }
+
+func ReadParquetAnomalyPage(path, kind, nodeSearch string, offset, limit int) (AnomalyPage, error) {
+	if limit < 1 || limit > 2000 {
+		return AnomalyPage{}, fmt.Errorf("页大小必须在 1-2000 之间")
+	}
+	if offset < 0 {
+		return AnomalyPage{}, fmt.Errorf("页码不能小于 0")
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return AnomalyPage{}, fmt.Errorf("打开 parquet: %w", err)
+	}
+	defer f.Close()
+	r := parquet.NewGenericReader[ParquetRow](f)
+	defer r.Close()
+	type group struct {
+		kind, node string
+		start, end int64
+		count      int64
+	}
+	groups := make([]group, 0)
+	active := make(map[string]*group)
+	flush := func(node string) {
+		if current := active[node]; current != nil {
+			groups = append(groups, *current)
+			delete(active, node)
+		}
+	}
+	classify := func(row ParquetRow) string {
+		switch {
+		case strings.HasPrefix(row.Quality, "Bad"):
+			return "Bad"
+		case strings.HasPrefix(row.Quality, "Uncertain"):
+			return "Uncertain"
+		case strings.HasPrefix(row.Quality, "Good") && !row.HasValue:
+			return "Good 空值"
+		default:
+			return ""
+		}
+	}
+	buf := make([]ParquetRow, 2048)
+	for {
+		n, readErr := r.Read(buf)
+		for _, row := range buf[:n] {
+			rowKind := classify(row)
+			current := active[row.Node]
+			if rowKind == "" {
+				flush(row.Node)
+				continue
+			}
+			if current == nil || current.kind != rowKind {
+				flush(row.Node)
+				active[row.Node] = &group{kind: rowKind, node: row.Node, start: row.Timestamp, end: row.Timestamp, count: 1}
+			} else {
+				current.end = row.Timestamp
+				current.count++
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return AnomalyPage{}, fmt.Errorf("读取 parquet: %w", readErr)
+		}
+	}
+	for node := range active {
+		flush(node)
+	}
+	sort.SliceStable(groups, func(i, j int) bool { return groups[i].start < groups[j].start })
+	search := strings.ToLower(strings.TrimSpace(nodeSearch))
+	filtered := make([]group, 0, len(groups))
+	var out AnomalyPage
+	for _, item := range groups {
+		switch item.kind {
+		case "Bad":
+			out.Bad += item.count
+		case "Uncertain":
+			out.Uncertain += item.count
+		case "Good 空值":
+			out.GoodEmpty += item.count
+		}
+		out.AnomalyRecords += item.count
+		if kind != "" && item.kind != kind {
+			continue
+		}
+		if search != "" && !strings.Contains(strings.ToLower(item.node), search) {
+			continue
+		}
+		filtered = append(filtered, item)
+	}
+	out.Total = int64(len(filtered))
+	end := min(offset+limit, len(filtered))
+	if offset < len(filtered) {
+		out.Rows = make([]AnomalyRow, 0, end-offset)
+		for _, item := range filtered[offset:end] {
+			out.Rows = append(out.Rows, AnomalyRow{Kind: item.kind, Node: item.node, Start: time.Unix(0, item.start).UTC().Format(time.RFC3339Nano), End: time.Unix(0, item.end).UTC().Format(time.RFC3339Nano), Count: item.count})
+		}
+	} else {
+		out.Rows = []AnomalyRow{}
+	}
+	return out, nil
+}

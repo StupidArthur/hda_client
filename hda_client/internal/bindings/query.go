@@ -224,6 +224,10 @@ func (b *QueryBinding) ReadParquetTrend(path string, nodes []string, maxPoints i
 	return hda.ReadParquetTrend(resolveOutputPath(strings.TrimSpace(path)), nodes, maxPoints)
 }
 
+func (b *QueryBinding) ReadParquetAnomalyPage(path, kind, nodeSearch string, offset, limit int) (hda.AnomalyPage, error) {
+	return hda.ReadParquetAnomalyPage(resolveOutputPath(strings.TrimSpace(path)), kind, nodeSearch, offset, limit)
+}
+
 func (b *QueryBinding) ExpandTagExpression(source string) ([]string, error) {
 	return hda.ExpandTagExpression(source)
 }

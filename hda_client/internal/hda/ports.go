@@ -20,5 +20,5 @@ type HistoryClient interface {
 // reading continuation points serially for one node.
 type ProgressiveHistoryClient interface {
 	HistoryClient
-	ReadRawWithProgress(ctx context.Context, nodeID string, start, end time.Time, onPage func(records int)) ([]DataPoint, error)
+	ReadRawWithProgress(ctx context.Context, nodeID string, start, end time.Time, pageSize uint32, onPage func(records int)) ([]DataPoint, error)
 }
