@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "start_utc": "2026-09-06T00:00:00+00:00",
+  "end_utc_exclusive": "2026-09-07T08:00:00+00:00",
+  "interval_policy": "[start,end)",
+  "event_count": 133127,
+  "scenarios": [
+    {
+      "id": "S01",
+      "name": "正常10秒基线",
+      "start_utc": "2026-09-06T00:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T02:00:00+00:00"
+    },
+    {
+      "id": "S02",
+      "name": "毫秒偏移与抖动",
+      "start_utc": "2026-09-06T02:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T04:00:00+00:00"
+    },
+    {
+      "id": "S03",
+      "name": "离散丢点与连续断采",
+      "start_utc": "2026-09-06T04:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T06:00:00+00:00"
+    },
+    {
+      "id": "S04",
+      "name": "显式NaN与Null",
+      "start_utc": "2026-09-06T06:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T08:00:00+00:00"
+    },
+    {
+      "id": "S05",
+      "name": "恒值故障与合法稳定状态",
+      "start_utc": "2026-09-06T08:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T10:00:00+00:00"
+    },
+    {
+      "id": "S06",
+      "name": "5分钟稀疏列及正负50毫秒",
+      "start_utc": "2026-09-06T10:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T12:00:00+00:00"
+    },
+    {
+      "id": "S07",
+      "name": "NaN与正负无穷及有限极值",
+      "start_utc": "2026-09-06T12:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T14:00:00+00:00"
+    },
+    {
+      "id": "S08",
+      "name": "Bad与Uncertain质量码",
+      "start_utc": "2026-09-06T14:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T16:00:00+00:00"
+    },
+    {
+      "id": "S09",
+      "name": "频率切换与时钟漂移",
+      "start_utc": "2026-09-06T16:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T18:00:00+00:00"
+    },
+    {
+      "id": "S10",
+      "name": "PI模拟压缩15秒原始序列",
+      "start_utc": "2026-09-06T18:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T20:00:00+00:00"
+    },
+    {
+      "id": "S11",
+      "name": "PI模拟压缩与真实断采叠加",
+      "start_utc": "2026-09-06T20:00:00+00:00",
+      "end_utc_exclusive": "2026-09-06T22:00:00+00:00"
+    },
+    {
+      "id": "S12",
+      "name": "尖峰阶跃漂移与饱和",
+      "start_utc": "2026-09-06T22:00:00+00:00",
+      "end_utc_exclusive": "2026-09-07T00:00:00+00:00"
+    },
+    {
+      "id": "S13",
+      "name": "晚开始早结束与整列无事件",
+      "start_utc": "2026-09-07T00:00:00+00:00",
+      "end_utc_exclusive": "2026-09-07T02:00:00+00:00"
+    },
+    {
+      "id": "S14",
+      "name": "乱序到达与重复重放",
+      "start_utc": "2026-09-07T02:00:00+00:00",
+      "end_utc_exclusive": "2026-09-07T04:00:00+00:00"
+    },
+    {
+      "id": "S15",
+      "name": "同位号同时间冲突值",
+      "start_utc": "2026-09-07T04:00:00+00:00",
+      "end_utc_exclusive": "2026-09-07T06:00:00+00:00"
+    },
+    {
+      "id": "S16",
+      "name": "混合问题与恢复",
+      "start_utc": "2026-09-07T06:00:00+00:00",
+      "end_utc_exclusive": "2026-09-07T08:00:00+00:00"
+    }
+  ],
+  "tags": [
+    {
+      "tag": "qa_ind_0001",
+      "role": "正常对照",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0002",
+      "role": "温度",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0003",
+      "role": "压力",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0004",
+      "role": "流量",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0005",
+      "role": "液位",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0006",
+      "role": "慢速分析仪",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0007",
+      "role": "压缩模拟",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0008",
+      "role": "恒定设定值",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0009",
+      "role": "离散开关(Double编码)",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0010",
+      "role": "质量异常",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0011",
+      "role": "数值异常",
+      "opcua_type": "Double"
+    },
+    {
+      "tag": "qa_ind_0012",
+      "role": "边缘覆盖",
+      "opcua_type": "Double"
+    }
+  ],
+  "compression_simulation": {
+    "nominal_seconds": 15,
+    "range": [
+      0,
+      100
+    ],
+    "tolerance": 1.0,
+    "method": "deterministic irregular archive knots preserving piecewise-linear step boundaries; not PI implementation"
+  }
+}
