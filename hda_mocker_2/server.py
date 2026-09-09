@@ -57,7 +57,7 @@ async def run(settings: Settings) -> None:
     server.set_endpoint(f"opc.tcp://{settings.host}:{settings.port}/hda-mocker/")
     namespace = await server.register_namespace(settings.namespace_uri)
 
-    storage = VirtualHistoryStorage(specs, settings.history_length, settings.query_duration, settings.page_size)
+    storage = VirtualHistoryStorage(specs, settings.history_length, settings.query_duration, settings.page_size, settings.interval, settings.read_timeout)
     server.iserver.history_manager = AggregateHistoryManager(server.iserver, storage)
 
     root = await server.nodes.objects.add_object(namespace, "HDA_Mocker")

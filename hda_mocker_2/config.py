@@ -7,14 +7,14 @@ import re
 import yaml
 
 
-_DURATION = re.compile(r"^(\d+)(s|m|h|d)$")
-_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+_DURATION = re.compile(r"^(\d+)(s|m|h|d|y)$")
+_SECONDS = {"s": 1, "m": 60, "h": 3600, "d": 86400, "y": 365 * 86400}
 
 
 def parse_duration(value: str) -> int:
     match = _DURATION.fullmatch(str(value).strip().lower())
     if not match:
-        raise ValueError(f"无效时长 {value!r}，支持 30s、9m、24h、7d")
+        raise ValueError(f"无效时长 {value!r}，支持 30s/9m/24h/7d/1y")
     seconds = int(match.group(1)) * _SECONDS[match.group(2)]
     if seconds <= 0:
         raise ValueError("时长必须大于 0")
@@ -37,6 +37,7 @@ class Settings:
     query_duration: int
     history_length: int
     page_size: int
+    read_timeout: int
     type_groups: int
     dynamic_count: int
     static_count: int
@@ -47,6 +48,13 @@ class Settings:
 
 def load_settings(path: str | Path) -> Settings:
     config_path = Path(path).resolve()
+    if not config_path.is_file():
+        # 视为预设名: presets/<name>/config.yaml
+        config_path = (
+            Path(__file__).resolve().parent / "presets" / str(path) / "config.yaml"
+        ).resolve()
+        if not config_path.is_file():
+            raise FileNotFoundError(f"预设配置不存在: {path!r} (需为 config.yaml 路径或 presets/ 下的预设名)")
     root = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     if not isinstance(root, dict):
         raise ValueError("config.yaml 顶层必须是对象")
@@ -57,8 +65,8 @@ def load_settings(path: str | Path) -> Settings:
     history = root["history"]
 
     interval = parse_duration(history.get("interval", "1s"))
-    if interval != 1:
-        raise ValueError("当前版本固定提供秒级数据，history.interval 必须为 1s")
+    if interval <= 0:
+        raise ValueError("history.interval 必须大于 0")
 
     settings = Settings(
         host=str(server.get("host", "0.0.0.0")),
@@ -68,6 +76,7 @@ def load_settings(path: str | Path) -> Settings:
         query_duration=parse_duration(history.get("duration", "24h")),
         history_length=parse_duration(history.get("default_hda_length", "7d")),
         page_size=int(history.get("num_values_per_node", 1200)),
+        read_timeout=parse_duration(history.get("read_timeout", "20s")),
         type_groups=_positive_int(preset["type_nodes"], "groups"),
         dynamic_count=_positive_int(preset["dynamic_nodes"], "count"),
         static_count=_positive_int(preset["static_nodes"], "count"),

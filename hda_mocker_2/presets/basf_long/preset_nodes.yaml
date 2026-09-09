@@ -1,0 +1,14 @@
+# BASF 长期历史预设: 1000 个动态位号, 10 秒间隔, 1 年历史
+type_nodes:
+  groups: 0
+
+dynamic_nodes:
+  count: 1000
+
+static_nodes:
+  count: 0
+
+bad_realtime_nodes:
+  count: 0
+  good_duration: 9m
+  bad_duration: 1m

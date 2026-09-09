@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta, timezone
 from asyncua import ua
 from asyncua.server.history import HistoryManager
@@ -8,11 +9,13 @@ from model import NodeSpec, sawtooth_stats, value_at
 
 
 class VirtualHistoryStorage:
-    def __init__(self, specs: list[NodeSpec], history_length: int, query_duration: int, page_size: int):
+    def __init__(self, specs: list[NodeSpec], history_length: int, query_duration: int, page_size: int, interval: int = 1, read_timeout: int = 20):
         self.specs = {spec.node_id: spec for spec in specs}
         self.history_length = history_length
         self.query_duration = query_duration
         self.page_size = page_size
+        self.interval = max(1, int(interval))
+        self.read_timeout = max(1.0, float(read_timeout))
 
     async def init(self):
         pass
@@ -59,17 +62,27 @@ class VirtualHistoryStorage:
 
         first = int(start.timestamp())
         last = int(end.timestamp())
-        timestamps = range(first, last + 1)
-        if not forward:
-            timestamps = reversed(range(first, last + 1))
+        if forward:
+            timestamps = range(first, last + 1, self.interval)
+        else:
+            timestamps = range(last, first - 1, -self.interval)
 
         max_items = limit or self.page_size
         selected = []
         continuation = None
+        deadline = time.monotonic() + self.read_timeout
+        check_every = 4096
+        since_check = 0
         for ts in timestamps:
             if len(selected) >= max_items:
                 continuation = datetime.fromtimestamp(ts, timezone.utc)
                 break
+            if since_check >= check_every:
+                since_check = 0
+                if time.monotonic() > deadline:
+                    continuation = datetime.fromtimestamp(ts, timezone.utc)
+                    break
+            since_check += 1
             selected.append(ts)
         points = [
             ua.DataValue(
@@ -97,12 +110,16 @@ class VirtualHistoryStorage:
         bucket_start = start.timestamp()
         output = []
         ids = ua.ObjectIds
+        deadline = time.monotonic() + self.read_timeout
         while bucket_start <= end.timestamp():
             bucket_end = min(bucket_start + interval, end.timestamp() + 1)
             first = int(bucket_start)
             last = int(bucket_end - 1e-9)
-            count = max(0, last - first + 1)
-            if count == 0:
+            if first > last:
+                bucket_start += interval
+                continue
+            count = (last - first) // self.interval + 1
+            if count <= 0:
                 bucket_start += interval
                 continue
 
@@ -114,7 +131,7 @@ class VirtualHistoryStorage:
                     continue
                 result_value = float(spec.initial_value)
             else:
-                _, total, minimum, maximum = sawtooth_stats(first, last)
+                _, total, minimum, maximum = sawtooth_stats(first, last, self.interval)
                 if aggregate_id in (ids.AggregateFunction_Average, ids.AggregateFunction_TimeAverage):
                     result_value = total / count
                 elif aggregate_id == ids.AggregateFunction_Minimum:
@@ -130,6 +147,8 @@ class VirtualHistoryStorage:
                 SourceTimestamp=datetime.fromtimestamp(bucket_start, timezone.utc),
             ))
             bucket_start += interval
+            if time.monotonic() > deadline:
+                break
         if not forward:
             output.reverse()
         return output

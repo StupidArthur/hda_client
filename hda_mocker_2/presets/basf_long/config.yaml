@@ -1,0 +1,13 @@
+server:
+  host: 0.0.0.0
+  port: 18970
+  namespace_uri: urn:hda-mocker-2-basf
+
+history:
+  interval: 10s
+  duration: 1y
+  default_hda_length: 1y
+  num_values_per_node: 5000000
+  read_timeout: 20s
+
+preset_nodes: preset_nodes.yaml
