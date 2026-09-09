@@ -4,9 +4,6 @@ __pycache__/
 *.log
 *.pid
 
-# 证书私钥(安全, 不入库); 公钥证书与 trust 目录正常入库
-x509/certs/*_key.pem
-
 # SQLite 历史数据
 hda_mocker/data/
 

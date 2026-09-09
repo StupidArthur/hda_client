@@ -53,11 +53,19 @@ async def run(settings: Settings) -> None:
     )
 
     replay_tags = None
-    if settings.replay_csv:
-        replay_tags = load_replay_csv(settings.replay_csv)
+    if settings.replay_csvs:
+        replay_tags = []
+        seen_tags: set[str] = set()
+        for csv_path in settings.replay_csvs:
+            loaded = load_replay_csv(csv_path)
+            dup = {t.node_id for t in loaded} & seen_tags
+            if dup:
+                raise ValueError(f"回放数据集位号重复: {sorted(dup)} ({csv_path})")
+            seen_tags.update(t.node_id for t in loaded)
+            replay_tags.extend(loaded)
+            print(f"Replay: {len(loaded)} 个位号 from {csv_path}")
         for tag in replay_tags:
             specs.append(NodeSpec(tag.node_id, ua.VariantType.Double, 0.0, False, "replay"))
-        print(f"Replay: {len(replay_tags)} 个位号 from {settings.replay_csv}")
 
     server = Server()
     await server.init()

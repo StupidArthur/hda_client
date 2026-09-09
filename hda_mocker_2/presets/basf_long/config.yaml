@@ -10,7 +10,11 @@ history:
   num_values_per_node: 5000000
   read_timeout: 20s
 
-# 叠加固定回放数据集(qa_ind_0001~0012, 2026-09-06 00:00 ~ 09-07 08:00 UTC)
-replay_csv: ../../data/qa/hda_events.csv
+# 叠加固定回放数据集:
+#   v1: qa_ind_0001~0012, 16 场景, 2026-09-06 00:00 ~ 09-07 08:00 UTC
+#   v2: qa_v2_0001~0012, 20 场景, 2026-09-06 00:00 ~ 09-07 16:00 UTC
+replay_csvs:
+  - ../../data/qa/hda_events.csv
+  - ../../data/qa/industrial_hda_v2.csv
 
 preset_nodes: preset_nodes.yaml

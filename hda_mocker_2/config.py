@@ -44,7 +44,7 @@ class Settings:
     bad_count: int
     good_duration: int
     bad_duration: int
-    replay_csv: str | None = None
+    replay_csvs: tuple[str, ...] = ()
 
 
 def load_settings(path: str | Path) -> Settings:
@@ -69,10 +69,16 @@ def load_settings(path: str | Path) -> Settings:
     if interval <= 0:
         raise ValueError("history.interval 必须大于 0")
 
-    replay_raw = root.get("replay_csv")
-    replay_csv = None
-    if replay_raw:
-        replay_csv = str((config_path.parent / replay_raw).resolve())
+    # 回放数据集: 优先 replay_csvs 列表, 兼容旧单值 replay_csv
+    replay_csvs: list[str] = []
+    raw_list = root.get("replay_csvs")
+    if isinstance(raw_list, list):
+        replay_csvs = [str(item) for item in raw_list if str(item).strip()]
+    elif root.get("replay_csv"):
+        replay_csvs = [str(root["replay_csv"])]
+    resolved = tuple(
+        str((config_path.parent / p).resolve()) for p in replay_csvs
+    )
 
     settings = Settings(
         host=str(server.get("host", "0.0.0.0")),
@@ -89,7 +95,7 @@ def load_settings(path: str | Path) -> Settings:
         bad_count=_positive_int(preset["bad_realtime_nodes"], "count"),
         good_duration=parse_duration(preset["bad_realtime_nodes"].get("good_duration", "9m")),
         bad_duration=parse_duration(preset["bad_realtime_nodes"].get("bad_duration", "1m")),
-        replay_csv=replay_csv,
+        replay_csvs=resolved,
     )
     if not 1 <= settings.port <= 65535:
         raise ValueError("server.port 必须在 1~65535 之间")
