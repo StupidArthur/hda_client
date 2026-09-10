@@ -1,0 +1,11 @@
+server:
+  endpoint: opc.tcp://0.0.0.0:4840
+  ns: 3
+  namespace: urn:hda:mocker4
+  max_page_size: 5000
+playback:
+  files:
+    hda_all.parquet:
+      period_ms: 1000
+history:
+  retention_days: 0

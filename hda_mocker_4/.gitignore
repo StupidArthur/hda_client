@@ -1,0 +1,9 @@
+/hda_mocker_4.exe
+/presets/*/runtime/
+!/presets/*/runtime/.gitkeep
+
+# Local production payload; keep deployment data outside Git.
+/hda/
+/da/
+/runtime/
+/archive/
