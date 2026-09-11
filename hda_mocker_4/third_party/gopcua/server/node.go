@@ -259,6 +259,18 @@ func (n *Node) SetDescription(text, locale string) {
 	n.attr[ua.AttributeIDDescription] = DataValueFromValue(&ua.LocalizedText{Text: text, Locale: locale})
 }
 
+// TypeDefinition is a HasTypeDefinition target, not the DataType attribute.
+func (n *Node) TypeDefinition() *ua.ExpandedNodeID {
+	if n != nil {
+		for _, r := range n.refs {
+			if r.ReferenceTypeID != nil && r.ReferenceTypeID.Equal(ua.NewNumericNodeID(0, id.HasTypeDefinition)) && r.IsForward && r.NodeID != nil {
+				return r.NodeID
+			}
+		}
+	}
+	return ua.NewTwoByteExpandedNodeID(0)
+}
+
 func (n *Node) DataType() *ua.ExpandedNodeID {
 	if n == nil {
 		log.Printf("n was nil!")
@@ -362,7 +374,7 @@ func (n *Node) AddRef(o *Node, rt RefType, forward bool) {
 		BrowseName:      o.BrowseName(),
 		DisplayName:     o.DisplayName(),
 		NodeClass:       o.NodeClass(),
-		TypeDefinition:  o.DataType(),
+		TypeDefinition:  o.TypeDefinition(),
 	}
 	n.refs = append(n.refs, &ref)
 }

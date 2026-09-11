@@ -58,22 +58,23 @@ func newServer(cfg Config, store *Store, p *Playback) (*mockServer, error) {
 		ua.NewStringNodeID(ns.ID(), "HDA_Mocker"),
 		server.Attributes{
 			ua.AttributeIDNodeClass:     server.DataValueFromValue(uint32(ua.NodeClassObject)),
-			ua.AttributeIDBrowseName:    server.DataValueFromValue(attrs.BrowseName("HDA_Mocker")),
+			ua.AttributeIDBrowseName:    server.DataValueFromValue(&ua.QualifiedName{NamespaceIndex: ns.ID(), Name: "HDA_Mocker"}),
 			ua.AttributeIDDisplayName:   server.DataValueFromValue(attrs.DisplayName("HDA_Mocker", "HDA_Mocker")),
 			ua.AttributeIDDescription:   server.DataValueFromValue(attrs.DisplayName("HDA_Mocker", "HDA_Mocker")),
 			ua.AttributeIDEventNotifier: server.DataValueFromValue(int16(0)),
-			ua.AttributeIDDataType:      server.DataValueFromValue(ua.NewNumericExpandedNodeID(0, id.FolderType)),
 		},
 		server.References{},
 		nil,
 	)
 	ns.AddNode(folder)
+	folder.AddRef(base.Node(ua.NewNumericNodeID(0, id.BaseObjectType)), id.HasTypeDefinition, true)
 	root.AddRef(folder, id.Organizes, true)
 	standard, e := base.Namespace(0)
 	if e != nil {
 		return nil, fmt.Errorf("get standard namespace: %w", e)
 	}
 	standard.Objects().AddRef(folder, id.Organizes, true)
+	folder.AddRef(standard.Objects(), id.Organizes, false)
 	tags, e := store.tags()
 	if e != nil {
 		return nil, e
@@ -82,8 +83,17 @@ func newServer(cfg Config, store *Store, p *Playback) (*mockServer, error) {
 	for _, t := range tags {
 		t := t
 		n := server.NewVariableNode(ua.NewStringNodeID(ns.ID(), t.Name), t.Name, func() *ua.DataValue { return m.value(t.Name) })
+		n.SetAttribute(ua.AttributeIDBrowseName, server.DataValueFromValue(&ua.QualifiedName{NamespaceIndex: ns.ID(), Name: t.Name}))
+		n.SetAttribute(ua.AttributeIDDataType, server.DataValueFromValue(ua.NewNumericNodeID(0, id.Double)))
+		n.SetAttribute(ua.AttributeIDValueRank, server.DataValueFromValue(int32(-1)))
+		n.SetAttribute(ua.AttributeIDArrayDimensions, server.DataValueFromValue([]uint32{}))
+		n.SetAttribute(ua.AttributeIDAccessLevel, server.DataValueFromValue(uint8(ua.AccessLevelTypeCurrentRead|ua.AccessLevelTypeHistoryRead)))
+		n.SetAttribute(ua.AttributeIDUserAccessLevel, server.DataValueFromValue(uint8(ua.AccessLevelTypeCurrentRead|ua.AccessLevelTypeHistoryRead)))
+		n.SetAttribute(ua.AttributeIDHistorizing, server.DataValueFromValue(true))
+		n.AddRef(base.Node(ua.NewNumericNodeID(0, id.BaseDataVariableType)), id.HasTypeDefinition, true)
 		ns.AddNode(n)
-		folder.AddRef(n, id.Organizes, true)
+		folder.AddRef(n, id.HasComponent, true)
+		n.AddRef(folder, id.HasComponent, false)
 	}
 	m.history = newHistory(store, cfg.Server.MaxPageSize, ns.ID())
 	if p != nil {

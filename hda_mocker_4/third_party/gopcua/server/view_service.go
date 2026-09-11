@@ -158,14 +158,11 @@ func suitableRefType(srv *Server, ref1, ref2 *ua.NodeID, subtypes bool) bool {
 	if ref1.Equal(ref2) {
 		return true
 	}
-	hasRef2Fn := func(nid *ua.NodeID) bool { return nid.Equal(ref2) }
-	hasSubtypeFn := func(nid *ua.NodeID) bool { return nid.Equal(hasSubtype) }
-	oktypes := getSubRefs(srv, ref1)
-	if !subtypes && slices.ContainsFunc(oktypes, hasSubtypeFn) {
-		for n := slices.IndexFunc(oktypes, hasSubtypeFn); n > 0; {
-			oktypes = slices.Delete(oktypes, n, n+1)
-		}
+	if !subtypes {
+		return false
 	}
+	hasRef2Fn := func(nid *ua.NodeID) bool { return nid.Equal(ref2) }
+	oktypes := getSubRefs(srv, ref1)
 	return slices.ContainsFunc(oktypes, hasRef2Fn)
 }
 

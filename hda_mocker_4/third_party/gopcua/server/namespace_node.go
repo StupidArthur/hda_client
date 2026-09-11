@@ -232,7 +232,7 @@ func (ns *NodeNameSpace) Browse(bd *ua.BrowseDescription) *ua.BrowseResult {
 			BrowseName:      r.BrowseName,
 			DisplayName:     r.DisplayName,
 			NodeClass:       r.NodeClass,
-			TypeDefinition:  td.DataType(),
+			TypeDefinition:  td.TypeDefinition(),
 		}
 
 		if rf.ReferenceTypeID.IntID() == id.HasTypeDefinition && rf.IsForward {
