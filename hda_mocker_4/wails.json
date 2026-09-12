@@ -1,0 +1,10 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "HDA Mocker 4",
+  "outputfilename": "hda_mocker_4",
+  "frontend:install": "npm.cmd install",
+  "frontend:build": "npm.cmd run build",
+  "frontend:dev:watcher": "npm.cmd run dev",
+  "frontend:dev:serverUrl": "auto",
+  "author": { "name": "HDA Mocker" }
+}

@@ -1,15 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"net/url"
-	"os"
-	"os/signal"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gopcua/opcua/id"
@@ -23,6 +19,7 @@ type mockServer struct {
 	*server.Server
 	store    *Store
 	playback *Playback
+	daTags   map[string]bool
 	history  *HistoryEngine
 	cfg      Config
 	ns       *server.NodeNameSpace
@@ -79,7 +76,15 @@ func newServer(cfg Config, store *Store, p *Playback) (*mockServer, error) {
 	if e != nil {
 		return nil, e
 	}
-	m := &mockServer{Server: base, store: store, playback: p, cfg: cfg, ns: ns}
+	daTags := map[string]bool{}
+	if p != nil {
+		for _, f := range p.files {
+			for _, name := range f.Tags {
+				daTags[name] = true
+			}
+		}
+	}
+	m := &mockServer{Server: base, store: store, playback: p, daTags: daTags, cfg: cfg, ns: ns}
 	for _, t := range tags {
 		t := t
 		n := server.NewVariableNode(ua.NewStringNodeID(ns.ID(), t.Name), t.Name, func() *ua.DataValue { return m.value(t.Name) })
@@ -110,13 +115,14 @@ func (m *mockServer) value(name string) *ua.DataValue {
 			x = v
 		}
 	}
-	if x == nil {
+	if x == nil && !m.daTags[name] {
 		x, _ = m.store.latest(name)
 	}
 	if x == nil {
-		return &ua.DataValue{EncodingMask: ua.DataValueStatusCode | ua.DataValueSourceTimestamp, Status: ua.StatusBadWaitingForInitialData, SourceTimestamp: time.Now().UTC()}
+		now := time.Now().UTC()
+		return &ua.DataValue{EncodingMask: ua.DataValueStatusCode | ua.DataValueSourceTimestamp | ua.DataValueServerTimestamp, Status: ua.StatusBadWaitingForInitialData, SourceTimestamp: now, ServerTimestamp: now}
 	}
-	dv := &ua.DataValue{EncodingMask: ua.DataValueStatusCode | ua.DataValueSourceTimestamp, Status: ua.StatusCode(x.Quality), SourceTimestamp: x.TS}
+	dv := &ua.DataValue{EncodingMask: ua.DataValueStatusCode | ua.DataValueSourceTimestamp | ua.DataValueServerTimestamp, Status: ua.StatusCode(x.Quality), SourceTimestamp: x.TS, ServerTimestamp: x.TS}
 	if x.Value != nil {
 		dv.EncodingMask |= ua.DataValueValue
 		dv.Value = ua.MustVariant(*x.Value)
@@ -144,7 +150,7 @@ func (m *mockServer) historyRead(sc *uasc.SecureChannel, r ua.Request, reqID uin
 	}
 	out := make([]*ua.HistoryReadResult, len(req.NodesToRead))
 	for i, item := range req.NodesToRead {
-		out[i] = m.history.page(session, d, item, req.ReleaseContinuationPoints)
+		out[i] = m.history.page(session, d, item, req.ReleaseContinuationPoints, req.TimestampsToReturn)
 	}
 	return &ua.HistoryReadResponse{ResponseHeader: responseHeader(requestHandle(req), ua.StatusOK), Results: out}, nil
 }
@@ -212,129 +218,6 @@ func (m *mockServer) close() {
 		m.playback.Close()
 	}
 	m.Server.Close()
-}
-func run(cfg Config, root string) error {
-	runtime := root + string(os.PathSeparator) + "runtime"
-	if e := os.MkdirAll(runtime, 0755); e != nil {
-		return e
-	}
-	store, e := openStore(runtime + string(os.PathSeparator) + "history.duckdb")
-	if e != nil {
-		return fmt.Errorf("open DuckDB: %w", e)
-	}
-	defer store.Close()
-	hdaPaths, e := listParquet(root + string(os.PathSeparator) + "hda")
-	if e != nil {
-		return e
-	}
-	daPaths, e := listParquet(root + string(os.PathSeparator) + "da")
-	if e != nil {
-		return e
-	}
-	if len(hdaPaths) == 0 && len(daPaths) == 0 {
-		return fmt.Errorf("preset has no HDA or DA parquet files")
-	}
-	files := []FileInfo{}
-	seen := map[string]bool{}
-	for _, path := range hdaPaths {
-		f, e := validateParquet(store.db, path, true)
-		if e != nil {
-			return e
-		}
-		for _, n := range f.Tags {
-			if seen[n] {
-				return fmt.Errorf("duplicate tag in hda directory: %s", n)
-			}
-			seen[n] = true
-		}
-		files = append(files, f)
-	}
-	hda := files
-	da := []FileInfo{}
-	daSeen := map[string]bool{}
-	for _, path := range daPaths {
-		f, e := validateParquet(store.db, path, false)
-		if e != nil {
-			return e
-		}
-		period, ok := cfg.playbackPeriod(f.Name)
-		if !ok {
-			return fmt.Errorf("playback period is not configured for DA file %s", f.Name)
-		}
-		f.Period = period
-		for _, n := range f.Tags {
-			if daSeen[n] {
-				return fmt.Errorf("duplicate tag in da directory: %s", n)
-			}
-			daSeen[n] = true
-		}
-		da = append(da, f)
-	}
-	for name := range cfg.Playback.Files {
-		found := false
-		for _, f := range da {
-			if f.Name == name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return fmt.Errorf("playback period configured for missing DA file %s", name)
-		}
-	}
-	imp, e := store.importFiles(root, hda)
-	if e != nil {
-		return e
-	}
-	log.Printf("imports complete files=%d samples=%d elapsed=%s", imp.Files, imp.Samples, imp.Elapsed)
-	if e = store.registerDA(da); e != nil {
-		return e
-	}
-	if e = store.cleanup(cfg.History.RetentionDays); e != nil {
-		return e
-	}
-	p := newPlayback(store, da)
-	m, e := newServer(cfg, store, p)
-	if e != nil {
-		p.Close()
-		return e
-	}
-	if e = p.Start(); e != nil {
-		m.close()
-		return e
-	}
-	if e = m.Start(context.Background()); e != nil {
-		m.close()
-		return e
-	}
-	defer m.close()
-	cleanupStop := make(chan struct{})
-	defer close(cleanupStop)
-	go func() {
-		ticker := time.NewTicker(time.Hour)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				if !m.history.Active() {
-					if ce := store.cleanup(cfg.History.RetentionDays); ce != nil {
-						log.Printf("retention cleanup failed: %v", ce)
-					}
-				}
-			case <-cleanupStop:
-				return
-			}
-		}
-	}()
-	allTags, e := store.tags()
-	if e != nil {
-		return e
-	}
-	log.Printf("HDA Mocker 4 version=%s listening endpoint=%s ns=%d namespace=%s tags=%d", version, cfg.Server.Endpoint, cfg.Server.NS, cfg.Server.Namespace, len(allTags))
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
-	<-ch
-	return nil
 }
 
 var _ = strings.TrimSpace

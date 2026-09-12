@@ -28,7 +28,8 @@ type Tag struct {
 	Name string
 }
 type ImportResult struct {
-	Files   int
+	Files   int // newly imported files
+	Skipped int // unchanged files already committed in this database
 	Samples int64
 	Elapsed time.Duration
 }
@@ -103,13 +104,26 @@ func (s *Store) tags() ([]Tag, error) {
 	return out, nil
 }
 
+// importFiles keeps the command-line import contract. GUI startup uses the
+// context-aware variant so a stop request can roll back the active file safely.
 func (s *Store) importFiles(root string, files []FileInfo) (ImportResult, error) {
+	return s.importFilesContext(context.Background(), files, nil)
+}
+
+// importProgress is emitted only after a whole parquet file has committed.
+// A file is one DuckDB transaction, so the reported progress never claims
+// rows that could later be rolled back.
+type importProgress func(ImportResult, FileInfo)
+
+func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progress importProgress) (ImportResult, error) {
 	started := time.Now()
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	ctx := context.Background()
 	total := ImportResult{}
 	for _, f := range files {
+		if err := ctx.Err(); err != nil {
+			return total, err
+		}
 		sha, e := sha256File(f.Path)
 		if e != nil {
 			return total, e
@@ -122,6 +136,11 @@ func (s *Store) importFiles(root string, files []FileInfo) (ImportResult, error)
 				return total, fmt.Errorf("input changed after import: %s", f.Path)
 			}
 			if complete {
+				total.Skipped++
+				total.Elapsed = time.Since(started)
+				if progress != nil {
+					progress(total, f)
+				}
 				continue
 			}
 		} else if e != sql.ErrNoRows {
@@ -188,7 +207,11 @@ func (s *Store) importFiles(root string, files []FileInfo) (ImportResult, error)
 		args := []any{f.Path}
 		for _, name := range f.Tags {
 			col := quoteIdent(name)
-			parts = append(parts, fmt.Sprintf("SELECT ?::BIGINT AS tag_id, epoch_us(Timestamp)::BIGINT AS ts, CASE WHEN %s IS NULL OR isnan(%s) OR isinf(%s) THEN NULL ELSE %s END AS value, CASE WHEN %s IS NULL OR isnan(%s) OR isinf(%s) THEN 2157641728 ELSE 0 END AS quality, 'import' AS origin, ?::BIGINT AS batch_id FROM src", col, col, col, col, col, col, col))
+			quality := uaStatusSQL("0")
+			if statusCol, ok := f.StatusCols[name]; ok {
+				quality = uaStatusSQL(quoteIdent(statusCol))
+			}
+			parts = append(parts, fmt.Sprintf("SELECT ?::BIGINT AS tag_id, epoch_us(Timestamp)::BIGINT AS ts, CASE WHEN %s IS NULL OR isnan(%s) OR isinf(%s) THEN NULL ELSE %s END AS value, CASE WHEN %s IS NULL OR isnan(%s) OR isinf(%s) THEN 2150760448 ELSE %s END AS quality, 'import' AS origin, ?::BIGINT AS batch_id FROM src", col, col, col, col, col, col, col, quality))
 			args = append(args, m[name].ID, batch)
 		}
 		q := "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS (" + strings.Join(parts, " UNION ALL ") + ") SELECT count(*) FROM incoming i JOIN samples s ON s.tag_id=i.tag_id AND s.ts=i.ts WHERE NOT ((i.value IS NULL AND s.value IS NULL) OR i.value=s.value) OR i.quality<>s.quality"
@@ -215,6 +238,10 @@ func (s *Store) importFiles(root string, files []FileInfo) (ImportResult, error)
 			return total, e
 		}
 		total.Files++
+		total.Elapsed = time.Since(started)
+		if progress != nil {
+			progress(total, f)
+		}
 		log.Printf("import complete file=%s samples=%d elapsed=%s", filepath.Base(f.Path), f.Rows*int64(len(f.Tags)), time.Since(started))
 	}
 	total.Elapsed = time.Since(started)
@@ -444,6 +471,11 @@ type playbackUpdate struct {
 	Next      int64
 }
 
+type replayValue struct {
+	DAValue, DAStatus   any
+	HDAValue, HDAStatus any
+}
+
 func (s *Store) writeLive(vals map[string]any, ts time.Time, batch int64) ([]Sample, error) {
 	return s.writeLiveAndState(vals, ts, batch, nil)
 }
@@ -501,6 +533,12 @@ func (s *Store) writeLiveAndState(vals map[string]any, ts time.Time, batch int64
 			return nil, fmt.Errorf("unknown DA tag %q", n)
 		}
 		fv, q := normalizeValue(v)
+		if cell, ok := v.(replayValue); ok {
+			fv, q = normalizeValue(cell.HDAValue)
+			if fv != nil {
+				q = normalizeUAStatus(cell.HDAStatus)
+			}
+		}
 		if _, e = tx.Exec(`INSERT INTO samples(tag_id,ts,value,quality,origin,batch_id) VALUES (?,?,?,?,?,?)`, t.ID, ts.UTC().UnixMicro(), fv, q, "live", batch); e != nil {
 			tx.Rollback()
 			return nil, e
@@ -525,4 +563,10 @@ func (s *Store) writeLiveAndState(vals map[string]any, ts time.Time, batch int64
 		return nil, e
 	}
 	return out, nil
+}
+
+// uaStatusSQL preserves the complete OPC UA StatusCode. Schema validation
+// guarantees an integer value in the UInt32 range before this expression runs.
+func uaStatusSQL(status string) string {
+	return fmt.Sprintf("CAST(%s AS BIGINT)", status)
 }

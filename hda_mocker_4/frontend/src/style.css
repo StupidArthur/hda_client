@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 14% 98%; --foreground: 30 9% 20%; --card: 0 0% 100%;
+    --primary: 16 64% 60%; --muted: 40 12% 93%; --muted-foreground: 30 5% 45%;
+    --border: 40 12% 90%; --destructive: 4 64% 51%; --radius: .5rem;
+  }
+  * { border-color: hsl(var(--border)); }
+  body { margin: 0; min-width: 920px; background: hsl(var(--background)); color: hsl(var(--foreground)); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  button, input, select { font: inherit; }
+}
+
+@layer components {
+  .card { @apply rounded-lg border bg-card shadow-[0_1px_3px_rgba(15,15,15,.06)] ; }
+  .button { @apply inline-flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45; }
+  .button-primary { @apply button bg-primary text-white hover:brightness-95; }
+  .button-secondary { @apply button border bg-card hover:bg-muted; }
+  .nav-item { @apply flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-mutedForeground transition-all duration-150 hover:bg-muted hover:text-foreground; }
+  .nav-item-active { @apply bg-muted text-foreground font-medium; }
+  .input { @apply h-9 rounded-md border bg-card px-3 text-sm outline-none focus:ring-2 focus:ring-primary/40; }
+}

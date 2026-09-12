@@ -24,6 +24,9 @@ func (s *AttributeService) Read(sc *uasc.SecureChannel, r ua.Request, reqID uint
 	if err != nil {
 		return nil, err
 	}
+	if req.TimestampsToReturn > ua.TimestampsToReturnNeither {
+		return &ua.ReadResponse{ResponseHeader: responseHeader(req.RequestHeader.RequestHandle, ua.StatusBadTimestampsToReturnInvalid)}, nil
+	}
 
 	results := make([]*ua.DataValue, len(req.NodesToRead))
 	for i, n := range req.NodesToRead {
@@ -40,7 +43,7 @@ func (s *AttributeService) Read(sc *uasc.SecureChannel, r ua.Request, reqID uint
 			}
 			continue
 		}
-		results[i] = ns.Attribute(n.NodeID, n.AttributeID)
+		results[i] = applyTimestampsToReturn(ns.Attribute(n.NodeID, n.AttributeID), req.TimestampsToReturn)
 
 	}
 
@@ -50,6 +53,28 @@ func (s *AttributeService) Read(sc *uasc.SecureChannel, r ua.Request, reqID uint
 	}
 
 	return response, nil
+}
+
+// applyTimestampsToReturn trims timestamps supplied by node getters. Keeping
+// this in the framework makes Read and monitored-item behavior consistent.
+func applyTimestampsToReturn(in *ua.DataValue, mode ua.TimestampsToReturn) *ua.DataValue {
+	if in == nil {
+		return in
+	}
+	out := *in
+	switch mode {
+	case ua.TimestampsToReturnSource:
+		out.EncodingMask &^= ua.DataValueServerTimestamp
+		out.ServerTimestamp = time.Time{}
+	case ua.TimestampsToReturnServer:
+		out.EncodingMask &^= ua.DataValueSourceTimestamp
+		out.SourceTimestamp = time.Time{}
+	case ua.TimestampsToReturnBoth:
+	case ua.TimestampsToReturnNeither:
+		out.EncodingMask &^= ua.DataValueSourceTimestamp | ua.DataValueServerTimestamp
+		out.SourceTimestamp, out.ServerTimestamp = time.Time{}, time.Time{}
+	}
+	return &out
 }
 
 // https://reference.opcfoundation.org/Core/Part4/v105/docs/5.10.3

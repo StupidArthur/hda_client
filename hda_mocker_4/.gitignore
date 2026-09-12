@@ -7,3 +7,9 @@
 /da/
 /runtime/
 /archive/
+
+# Frontend dependencies are reproducible from package-lock.json. The built
+# dist directory is intentionally tracked because Go embeds it into the exe.
+/frontend/node_modules/
+/build/
+/build_test_gui.exe

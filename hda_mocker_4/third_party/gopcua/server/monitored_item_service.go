@@ -128,7 +128,7 @@ func (s *MonitoredItemService) ChangeNotification(n *ua.NodeID) {
 			continue
 		}
 		dv := ns.Attribute(n, item.Req.ItemToMonitor.AttributeID)
-		val.Value = dv
+		val.Value = applyTimestampsToReturn(dv, item.TimestampsToReturn)
 		item.Sub.NotifyChannel <- val
 	}
 
@@ -148,7 +148,8 @@ type MonitoredItem struct {
 	Req *ua.MonitoredItemCreateRequest
 
 	//TODO: use this
-	Mode ua.MonitoringMode
+	Mode               ua.MonitoringMode
+	TimestampsToReturn ua.TimestampsToReturn
 }
 
 // https://reference.opcfoundation.org/Core/Part4/v105/docs/5.13.2
@@ -165,6 +166,9 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 	req, err := safeReq[*ua.CreateMonitoredItemsRequest](r)
 	if err != nil {
 		return nil, err
+	}
+	if req.TimestampsToReturn > ua.TimestampsToReturnNeither {
+		return &ua.CreateMonitoredItemsResponse{ResponseHeader: responseHeader(req.RequestHeader.RequestHandle, ua.StatusBadTimestampsToReturnInvalid)}, nil
 	}
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
@@ -193,9 +197,10 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 		itemreq := req.ItemsToCreate[i]
 		nodeid := itemreq.ItemToMonitor.NodeID
 		item := MonitoredItem{
-			ID:  s.NextID(),
-			Sub: sub,
-			Req: itemreq,
+			ID:                 s.NextID(),
+			Sub:                sub,
+			Req:                itemreq,
+			TimestampsToReturn: req.TimestampsToReturn,
 		}
 
 		// book keeping of the new item

@@ -1,9 +1,33 @@
 # hda_mocker_4
 
+中文详细文档：
+
+- [功能说明](docs/HDA_MOCKER_4_FUNCTIONS.md)
+- [数据集提交规范](docs/HDA_MOCKER_4_DATASET_SUBMISSION_RULE.md)
+- [使用手册](docs/HDA_MOCKER_4_MANUAL.md)
+
 This preset is a small, file-based OPC UA Historical Access mocker. Go owns the
 DuckDB history database, import, playback, UA Read/Subscribe and raw
 HistoryRead. Python is only an example source adapter and writes Parquet; it
 never opens the runtime database.
+
+## Value and status columns
+
+HDA Parquet starts with `Timestamp`, followed by required numeric `tag` columns
+and optional integer `tag.__status` columns. DA Parquet has required `tag`
+columns plus optional `tag.__status`, `tag.__hda_value`, and
+`tag.__hda_status` columns. Status values are complete OPC UA StatusCodes
+(`UInt32`, 0..4294967295).
+A missing status column defaults to 0 (`StatusGood`); a missing `__hda_value` uses
+`tag`. A NULL status cell is rejected, while NULL/NaN/Inf values intentionally
+produce no value with `BadWaitingForInitialData`.
+
+During playback, `tag`/`__status` is returned by DA and
+`__hda_value`/`__hda_status` is written to HDA. This permits DA errors and
+normal historical backfill in the same row. Auxiliary columns never create UA
+nodes. SourceTimestamp and ServerTimestamp are both the sample timestamp; Read
+and subscriptions honor `TimestampsToReturn`, and HistoryRead rejects
+`NEITHER`.
 
 ## Run
 

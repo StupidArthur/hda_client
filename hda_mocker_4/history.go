@@ -15,6 +15,7 @@ type historyCursor struct {
 	start, end, last time.Time
 	forward          bool
 	maxBatch         int64
+	timestamps       ua.TimestampsToReturn
 	expires          time.Time
 }
 type HistoryEngine struct {
@@ -64,7 +65,10 @@ func (e *HistoryEngine) sweep() {
 		}
 	}
 }
-func (e *HistoryEngine) page(session string, d *ua.ReadRawModifiedDetails, item *ua.HistoryReadValueID, release bool) *ua.HistoryReadResult {
+func (e *HistoryEngine) page(session string, d *ua.ReadRawModifiedDetails, item *ua.HistoryReadValueID, release bool, timestamps ua.TimestampsToReturn) *ua.HistoryReadResult {
+	if timestamps == ua.TimestampsToReturnNeither || timestamps > ua.TimestampsToReturnNeither {
+		return &ua.HistoryReadResult{StatusCode: ua.StatusBadTimestampsToReturnInvalid}
+	}
 	if item == nil || item.NodeID == nil {
 		return &ua.HistoryReadResult{StatusCode: ua.StatusBadNodeIDUnknown}
 	}
@@ -102,7 +106,7 @@ func (e *HistoryEngine) page(session string, d *ua.ReadRawModifiedDetails, item 
 			c = nil
 		}
 		e.mu.Unlock()
-		if c == nil || c.session != session || c.name != item.NodeID.StringID() {
+		if c == nil || c.session != session || c.name != item.NodeID.StringID() || c.timestamps != timestamps {
 			return &ua.HistoryReadResult{StatusCode: ua.StatusBadContinuationPointInvalid}
 		}
 	} else {
@@ -122,7 +126,7 @@ func (e *HistoryEngine) page(session string, d *ua.ReadRawModifiedDetails, item 
 			start, end = end, start
 			forward = false
 		}
-		c = &historyCursor{session: session, name: name, start: start, end: end, forward: forward, maxBatch: e.store.lastBatch(), expires: time.Now().Add(e.ttl)}
+		c = &historyCursor{session: session, name: name, start: start, end: end, forward: forward, maxBatch: e.store.lastBatch(), timestamps: timestamps, expires: time.Now().Add(e.ttl)}
 	}
 	limit := e.cap
 	if d.NumValuesPerNode > 0 && int(d.NumValuesPerNode) < limit {
@@ -142,7 +146,7 @@ func (e *HistoryEngine) page(session string, d *ua.ReadRawModifiedDetails, item 
 	}
 	data := make([]*ua.DataValue, len(vals))
 	for i, x := range vals {
-		data[i] = dataValueFromSample(x)
+		data[i] = dataValueFromSample(x, timestamps)
 	}
 	c.last = vals[len(vals)-1].TS
 	// Determine whether another row exists without materialising it.
@@ -178,12 +182,22 @@ func (e *HistoryEngine) page(session string, d *ua.ReadRawModifiedDetails, item 
 	return res
 }
 
-func dataValueFromSample(x Sample) *ua.DataValue {
-	mask := byte(ua.DataValueStatusCode | ua.DataValueSourceTimestamp)
-	dv := &ua.DataValue{EncodingMask: mask, Status: ua.StatusCode(x.Quality), SourceTimestamp: x.TS}
+func dataValueFromSample(x Sample, timestamps ua.TimestampsToReturn) *ua.DataValue {
+	mask := byte(ua.DataValueStatusCode | ua.DataValueSourceTimestamp | ua.DataValueServerTimestamp)
+	dv := &ua.DataValue{EncodingMask: mask, Status: ua.StatusCode(x.Quality), SourceTimestamp: x.TS, ServerTimestamp: x.TS}
 	if x.Value != nil {
 		dv.EncodingMask |= ua.DataValueValue
 		dv.Value = ua.MustVariant(*x.Value)
+	}
+	// History uses the same timestamp convention as live data, but NEITHER is
+	// invalid and is rejected by page before this point.
+	if timestamps == ua.TimestampsToReturnSource {
+		dv.EncodingMask &^= ua.DataValueServerTimestamp
+		dv.ServerTimestamp = time.Time{}
+	}
+	if timestamps == ua.TimestampsToReturnServer {
+		dv.EncodingMask &^= ua.DataValueSourceTimestamp
+		dv.SourceTimestamp = time.Time{}
 	}
 	return dv
 }
