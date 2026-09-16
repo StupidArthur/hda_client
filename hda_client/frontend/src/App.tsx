@@ -125,6 +125,7 @@ export default function App() {
   const [durationValue, setDurationValue] = useState(1)
   const [durationUnit, setDurationUnit] = useState<DurationUnit>('时')
   const [pageSize, setPageSize] = useState(5000)
+  const [concurrency, setConcurrency] = useState(16)
   const [output, setOutput] = useState(defaultOutput())
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<Progress | null>(null)
@@ -179,6 +180,7 @@ export default function App() {
       // 截止时间不恢复: 每次打开都取软件启动时的当前时间
       if (s.duration_sec > 0) { const [v, u] = splitDuration(s.duration_sec); setDurationValue(v); setDurationUnit(u) }
       if (s.page_size > 0) setPageSize(s.page_size)
+      if (s.concurrency > 0) setConcurrency(s.concurrency)
       // 保存的是默认路径模式或旧版弹窗默认值时, 恢复为新的时间戳默认, 避免覆盖旧文件
       if (s.output) setOutput(defaultOutputPattern.test(s.output) || staleOutputPattern.test(s.output) ? defaultOutput() : s.output)
     }).catch(error => setStatus(`加载配置失败：${error}`))
@@ -241,12 +243,12 @@ export default function App() {
     }
     if (!queryNodes.length) { setStatus('请先输入位号'); return }
     const path = output.trim() // 留空由后端落到默认 data/history_时间戳.parquet
-    const cfg = new hda.QueryConfig({url, ns, tags: queryNodes, end_time: endTime, duration_sec: durationSec, page_size: Math.max(1, Math.round(pageSize)), concurrency: 16})
+    const cfg = new hda.QueryConfig({url, ns, tags: queryNodes, end_time: endTime, duration_sec: durationSec, page_size: Math.max(1, Math.round(pageSize)), concurrency: Math.max(1, Math.min(128, Math.round(concurrency)))})
     setBusy(true); setProgress({done: 0, total: queryNodes.length, records: 0}); setStarted(Date.now()); setStatus('查询中…')
     try {
       await StartParquetQuery(cfg, path)
       // 持久化界面输入现场(表达式原文等), 而非展开后的位号列表
-      SaveSettings(new hda.AppSettings({url, ns, mode, direct, expression, csv_name: csvName, csv_nodes: csvNodes, end_time: endTime, duration_sec: durationSec, page_size: Math.max(1, Math.round(pageSize)), output: path})).catch(() => {})
+      SaveSettings(new hda.AppSettings({url, ns, mode, direct, expression, csv_name: csvName, csv_nodes: csvNodes, end_time: endTime, duration_sec: durationSec, page_size: Math.max(1, Math.round(pageSize)), concurrency: Math.max(1, Math.min(128, Math.round(concurrency))), output: path})).catch(() => {})
     } catch (e: any) { setBusy(false); setStarted(0); setStatus(`无法开始：${e}`) }
   }
   async function importCSV(e: ChangeEvent<HTMLInputElement>) {
@@ -312,12 +314,12 @@ export default function App() {
       {connected
         ? <button className="conn on" onClick={disconnect}>已连接 · 断开</button>
         : <button className="conn" disabled={connecting} onClick={connect}>{connecting ? '连接中…' : '连接'}</button>}
-      <span className="watermark">v1.1 designed by @yuzechao Industrial AI</span>
+      <span className="watermark">v1.2 designed by @yuzechao Industrial AI</span>
     </header>
     <nav className="tabs"><button className={tab === 'query' ? 'active' : ''} onClick={() => setTab('query')}>查询</button><button className={tab === 'anomaly' ? 'active' : ''} onClick={() => { setTab('anomaly'); if (!anomalyFile && lastResult) loadAnomalies(lastResult.path,0,'','') }}>异常值{anomalyPage && anomalyPage.anomaly_records > 0 && <em>{anomalyPage.anomaly_records.toLocaleString()}</em>}</button><button className={tab === 'analysis' ? 'active' : ''} onClick={() => setTab('analysis')}>数据详情</button><button className={tab === 'guide' ? 'active' : ''} onClick={() => setTab('guide')}>使用说明</button></nav>
     {tab === 'query' ? <section className="content query">
       <h2 className="section-title">查询配置</h2>
-      <div className="time"><label>截止 <input type="text" value={endTime} onChange={e => setEndTime(e.target.value)} placeholder="2026-09-07T16:30:00" title="格式 yyyy-MM-ddTHH:mm:ss，与配置文件一致"/></label><label>时长 <input type="number" min="1" value={durationValue} onChange={e => setDurationValue(Number(e.target.value))}/><select value={durationUnit} onChange={e => setDurationUnit(e.target.value as DurationUnit)}>{(['秒', '分', '时', '天'] as DurationUnit[]).map(u => <option key={u} value={u}>{u}</option>)}</select></label><label>单页上限 <input type="number" min="1" max="1000000" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}/></label></div>
+      <div className="time"><label>截止 <input type="text" value={endTime} onChange={e => setEndTime(e.target.value)} placeholder="2026-09-07T16:30:00" title="格式 yyyy-MM-ddTHH:mm:ss，与配置文件一致"/></label><label>时长 <input type="number" min="1" value={durationValue} onChange={e => setDurationValue(Number(e.target.value))}/><select value={durationUnit} onChange={e => setDurationUnit(e.target.value as DurationUnit)}>{(['秒', '分', '时', '天'] as DurationUnit[]).map(u => <option key={u} value={u}>{u}</option>)}</select></label><label>单页上限 <input type="number" min="1" max="1000000" value={pageSize} onChange={e => setPageSize(Number(e.target.value))}/></label><label>并发数 <input type="number" min="1" max="128" value={concurrency} onChange={e => setConcurrency(Number(e.target.value))}/></label></div>
       <div className="output"><label>输出路径</label><input value={output} onChange={e => setOutput(e.target.value)} placeholder="输出 Parquet 文件"/></div>
       <h2 className="section-title">查询位号</h2>
       <div className="mode-tabs"><button className={mode==='direct'?'active':''} onClick={() => setMode('direct')}>直接输入</button><button className={mode==='expression'?'active':''} onClick={() => setMode('expression')}>表达式</button><button className={mode==='csv'?'active':''} onClick={() => setMode('csv')}>CSV 导入</button></div>

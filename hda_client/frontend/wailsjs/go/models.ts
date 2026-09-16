@@ -72,6 +72,7 @@ export namespace hda {
 	    end_time: string;
 	    duration_sec: number;
 	    page_size: number;
+	    concurrency: number;
 	    output: string;
 	
 	    static createFrom(source: any = {}) {
@@ -90,6 +91,7 @@ export namespace hda {
 	        this.end_time = source["end_time"];
 	        this.duration_sec = source["duration_sec"];
 	        this.page_size = source["page_size"];
+	        this.concurrency = source["concurrency"];
 	        this.output = source["output"];
 	    }
 	}

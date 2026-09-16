@@ -199,6 +199,7 @@ type AppSettings struct {
 	EndTime     string   `json:"end_time"`
 	DurationSec int64    `json:"duration_sec"`
 	PageSize    uint32   `json:"page_size"`
+	Concurrency int      `json:"concurrency"`
 	Output      string   `json:"output"`
 }
 
