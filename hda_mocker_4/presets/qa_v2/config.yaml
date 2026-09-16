@@ -4,10 +4,6 @@ server:
   namespace: urn:hda:mocker4
   max_page_size: 5000
 playback:
-  files:
-    hda_all.parquet:
-      period_ms: 30000
-    dynamic_data_all.parquet:
-      period_ms: 60000
+  files: {}
 history:
   retention_days: 0

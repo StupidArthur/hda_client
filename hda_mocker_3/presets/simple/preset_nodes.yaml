@@ -1,0 +1,10 @@
+type_nodes:
+  groups: 2
+dynamic_nodes:
+  count: 10
+static_nodes:
+  count: 10
+bad_realtime_nodes:
+  count: 10
+  good_duration: 9m
+  bad_duration: 1m

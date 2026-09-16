@@ -5,9 +5,14 @@
 
 ## 启动
 
+每套场景测试数据集是 `presets/` 下的一个独立 preset。选择要运行的场景目录：
+
 ```powershell
-.\hda_mocker_4.exe --config .\config.yaml
+.\hda_mocker_4.exe --config presets\hda_all\config.yaml
+.\hda_mocker_4.exe --config presets\dynamic_data_all\config.yaml
 ```
+
+数据集清单与场景说明见 `presets/README.md`。
 
 启动日志第一行必须包含：
 
@@ -22,11 +27,13 @@ HDA Mocker 4 version=v1.0.2
 ## 必需文件
 
 - `hda_mocker_4.exe`
-- `config.yaml`
-- `hda/*.parquet`
-- `da/*.parquet`
-- `runtime/history.duckdb`
-- `runtime/history.duckdb.wal`（若存在，必须和数据库一起携带）
+- `presets/<数据集>/config.yaml`
+- `presets/<数据集>/hda/*.parquet`
+- `presets/<数据集>/da/*.parquet`
+- `presets/<数据集>/runtime/history.duckdb`
+- `presets/<数据集>/runtime/history.duckdb.wal`（若存在，必须和数据库一起携带）
+
+每套数据集单独交付、单独运行；同一时刻只启动一个场景即可。
 
 ## 客户端注意事项
 

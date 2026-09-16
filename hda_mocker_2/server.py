@@ -4,12 +4,14 @@ import asyncio
 from contextlib import suppress
 from dataclasses import replace
 from datetime import datetime, timezone
+from types import MethodType
 
 from asyncua import Server, ua
 
 from config import Settings
 from history import AggregateHistoryManager, VirtualHistoryStorage
-from model import NodeSpec, build_specs, load_replay_csv, realtime_is_bad, value_at
+from model import NodeSpec, build_specs, realtime_is_bad, value_at
+from replay import load_replay
 
 
 def normalize_write_timestamp(value: ua.DataValue) -> ua.DataValue:
@@ -52,28 +54,40 @@ async def run(settings: Settings) -> None:
         settings.bad_count,
     )
 
-    replay_tags = None
-    if settings.replay_csvs:
-        replay_tags = []
-        seen_tags: set[str] = set()
-        for csv_path in settings.replay_csvs:
-            loaded = load_replay_csv(csv_path)
-            dup = {t.node_id for t in loaded} & seen_tags
-            if dup:
-                raise ValueError(f"回放数据集位号重复: {sorted(dup)} ({csv_path})")
-            seen_tags.update(t.node_id for t in loaded)
-            replay_tags.extend(loaded)
-            print(f"Replay: {len(loaded)} 个位号 from {csv_path}")
-        for tag in replay_tags:
-            specs.append(NodeSpec(tag.node_id, ua.VariantType.Double, 0.0, False, "replay"))
-
+    replay_tags = load_replay(settings.config_dir / "data")
+    duplicate = {spec.node_id for spec in specs}.intersection(tag.node_id for tag in replay_tags)
+    if duplicate:
+        raise ValueError(f"replay tags duplicate generated nodes: {sorted(duplicate)}")
+    for tag in replay_tags:
+        specs.append(NodeSpec(tag.node_id, ua.VariantType.Double, 0.0, False, "replay"))
     server = Server()
     await server.init()
     server.set_endpoint(f"opc.tcp://{settings.host}:{settings.port}/hda-mocker/")
     namespace = await server.register_namespace(settings.namespace_uri)
 
     storage = VirtualHistoryStorage(specs, settings.history_length, settings.query_duration, settings.page_size, settings.interval, settings.read_timeout, replay_tags)
-    server.iserver.history_manager = AggregateHistoryManager(server.iserver, storage)
+    manager = AggregateHistoryManager(server.iserver, storage)
+    server.iserver.history_manager = manager
+    create_session = server.iserver.create_session
+
+    def create_bound_session(*args, **kwargs):
+        session = create_session(*args, **kwargs)
+        close_session = session.close_session
+
+        async def history_read(_session, params):
+            return await manager.read_history(params, session_id=_session.session_id)
+
+        async def close_bound_session(_session, *close_args, **close_kwargs):
+            try:
+                return await close_session(*close_args, **close_kwargs)
+            finally:
+                manager.release_session(_session.session_id)
+
+        session.history_read = MethodType(history_read, session)
+        session.close_session = MethodType(close_bound_session, session)
+        return session
+
+    server.iserver.create_session = create_bound_session
 
     root = await server.nodes.objects.add_object(namespace, "HDA_Mocker")
     folders = {
@@ -125,13 +139,13 @@ async def run(settings: Settings) -> None:
             points = storage.replay.get(str(node.nodeid.Identifier))
             if not points:
                 continue
-            last_ts, last_value, last_status = points[-1]
+            last = points[-1]
 
-            def _replay_current(_nid, _attr, _pts=points, _lts=last_ts, _lv=last_value, _ls=last_status):
-                ts = datetime.fromtimestamp(_lts, timezone.utc)
-                if _lv is None:
-                    return ua.DataValue(ua.Variant(None), StatusCode=ua.StatusCode(_ls), SourceTimestamp=ts)
-                return ua.DataValue(ua.Variant(_lv, ua.VariantType.Double), StatusCode=ua.StatusCode(_ls), SourceTimestamp=ts)
+            def _replay_current(_nid, _attr, _last=last):
+                ts = datetime.fromtimestamp(_last.timestamp_us / 1_000_000, timezone.utc)
+                if _last.value is None:
+                    return ua.DataValue(ua.Variant(None), StatusCode=ua.StatusCode(_last.quality), SourceTimestamp=ts)
+                return ua.DataValue(ua.Variant(_last.value, ua.VariantType.Double), StatusCode=ua.StatusCode(_last.quality), SourceTimestamp=ts)
 
             server.set_attribute_value_callback(node.nodeid, _replay_current)
 

@@ -1,10 +1,15 @@
 /hda_mocker_4.exe
+
+# Scenario dataset payloads are local; only configs and directory placeholders
+# are tracked. Each preset owns its hda/, da/ and runtime/.
+/presets/*/hda/*
+!/presets/*/hda/.gitkeep
+/presets/*/da/*
+!/presets/*/da/.gitkeep
 /presets/*/runtime/
 !/presets/*/runtime/.gitkeep
 
-# Local production payload; keep deployment data outside Git.
-/hda/
-/da/
+# Orphaned root-level payload left over from the pre-scenario layout.
 /runtime/
 /archive/
 

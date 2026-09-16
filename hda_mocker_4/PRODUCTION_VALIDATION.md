@@ -2,6 +2,11 @@
 
 软件版本：`v1.0.2`
 
+> 布局变更：数据集已按场景拆分为独立 preset（`presets/hda_all`、
+> `presets/dynamic_data_all`），不再两套共用根目录、一次启动。本文记录的是
+> v1.0.2 组合部署的验收结果，当前目录与启动方式以
+> [presets/README.md](presets/README.md) 为准。
+
 ## 1. 服务信息
 
 ```text

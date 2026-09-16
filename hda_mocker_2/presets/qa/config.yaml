@@ -11,6 +11,4 @@ history:
   read_timeout: 20s
 
 # 固定历史回放数据集(qa_ind_0001~0012, 16 场景, 2026-09-06 00:00 ~ 09-07 08:00 UTC)
-replay_csv: ../../data/qa/hda_events.csv
-
 preset_nodes: preset_nodes.yaml
