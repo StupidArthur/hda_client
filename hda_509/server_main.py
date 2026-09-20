@@ -4,6 +4,9 @@ OPC UA Mock Server 主逻辑：根据组态创建命名空间与变量节点，
 所有变量挂在 Objects 下的容器对象「mocker」之下（浏览路径：Objects → mocker → 变量）。
 对 change=true 的节点按 cycle 周期更新值；可写节点由客户端写后持久化（由 asyncua 负责）。
 控制台仅输出：开始构建节点树、构建完成、服务启动成功+端口、节点数量、designed by yzc，以及客户端写值消息。
+
+安全相关的服务端构建（证书 / 策略 / 信任存储 / 用户认证）已抽到 server_builder.py，
+场景差异由 YAML 配置表达（见 config_x509.yaml 与 config_scenarios/）。
 """
 
 import asyncio
@@ -11,14 +14,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from asyncua import Server, ua
+from asyncua import ua
 from asyncua.common.callback import CallbackType
 from asyncua.common.node_factory import make_node
-from asyncua.crypto.truststore import TrustStore
-from asyncua.crypto.validator import CertificateValidator, CertificateValidatorOptions
 
 from change_engines import next_value
 from config_loader import load_config
+from server_builder import build_server
 from type_mapping import (
     coerce_to_type,
     get_variant_type_and_default,
@@ -49,44 +51,6 @@ def _initial_value(node_cfg: dict, variant_type: ua.VariantType, default_py: Any
     return coerce_to_type(raw, variant_type)
 
 
-async def _setup_x509_security(server: Server, cfg: dict) -> None:
-    """
-    按组态可选键配置 X.509 证书认证：
-      - security_policy: 安全策略列表（如 ["Basic256Sha256_SignAndEncrypt"]），缺省为 NoSecurity
-      - cert / private_key: 服务端证书与私钥（PEM/DER）
-      - trust_store: 受信 CA/客户端证书目录，用于校验客户端证书
-    组态中不含以上键时保持无安全连接（向后兼容）。
-    """
-    security_policy = cfg.get("security_policy")
-    cert_path = cfg.get("cert")
-    key_path = cfg.get("private_key")
-    trust_dir = cfg.get("trust_store")
-
-    if security_policy is not None:
-        try:
-            policies = [ua.SecurityPolicyType[name] for name in security_policy]
-        except KeyError as e:
-            raise ValueError(f"不支持的安全策略: {e}，可选: {[m.name for m in ua.SecurityPolicyType]}") from e
-        server.set_security_policy(policies)
-        logger.info("安全策略: %s", [p.name for p in policies])
-
-    if cert_path and key_path:
-        await server.load_certificate(cert_path)
-        await server.load_private_key(key_path)
-        logger.info("服务端证书已加载: %s", cert_path)
-
-    if trust_dir:
-        trust_store = TrustStore([trust_dir], [])
-        await trust_store.load()
-        validator = CertificateValidator(
-            CertificateValidatorOptions.TRUSTED_VALIDATION
-            | CertificateValidatorOptions.PEER_CLIENT,
-            trust_store,
-        )
-        server.set_certificate_validator(validator)
-        logger.info("客户端证书校验已启用, 受信目录: %s", trust_dir)
-
-
 async def run_server(config_path: str) -> None:
     """
     加载组态并启动 OPC UA 服务器，阻塞直到被中断。
@@ -94,17 +58,15 @@ async def run_server(config_path: str) -> None:
     :param config_path: 组态文件路径（YAML）
     """
     cfg = load_config(config_path)
-    server = Server()
-    await server.init()
-    await _setup_x509_security(server, cfg)
+    server = await build_server(cfg)
 
     host = cfg["server"]
     port = int(cfg["port"])
     cycle_ms = int(cfg["cycle"])
     namespace_index = int(cfg["namespace_index"])
 
-    endpoint = f"opc.tcp://{host}:{port}/ua_mocker/"
-    server.set_endpoint(endpoint)
+    endpoint_path = cfg.get("endpoint_path", "/ua_mocker/")
+    endpoint = f"opc.tcp://{host}:{port}{endpoint_path}"
     logger.info("OPC UA 端点: %s", endpoint)
 
     # 使用组态中的 namespace_index 创建节点，使客户端看到的 ns 与配置文件一致

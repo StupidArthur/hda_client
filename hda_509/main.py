@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-OPC UA Mock Server 入口：仅支持唯一一个命令行参数（组态文件路径），
+OPC UA X.509 Compatibility Mocker 入口：仅支持唯一一个命令行参数（组态文件路径），
 日志输出到执行程序所在目录。
+
+用法（macOS / Windows 一致）：
+    python main.py config_x509.yaml
+    python main.py config_scenarios/self_signed_48621.yaml
 """
 
 import asyncio
@@ -17,7 +21,7 @@ CONFIG_ARG_INDEX = 1
 
 def main(config_path: str | None = None) -> None:
     """
-    启动 OPC UA Mock Server。
+    启动 OPC UA X.509 Compatibility Mocker。
 
     :param config_path: 组态文件路径（YAML）；若为 None 且通过命令行传入则使用该参数
     """

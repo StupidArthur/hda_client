@@ -1,32 +1,72 @@
 # Client connection guide
 
-Connect to the OPC UA server with `Basic256Sha256_SignAndEncrypt` and three
-files supplied for that client:
+The OPC UA X.509 Compatibility Mocker requires a client **Application
+certificate** issued by the test CA in `test_material/certs/trust/`. The
+server validates that certificate at CreateSession.
 
-1. the client's certificate;
-2. the matching client private key;
-3. the server certificate.
+## Files a client needs
 
-The server validates the client certificate against its trust store. The
-client validates the server certificate, so all three files are required.
+For a secured connection you need four files:
 
-The repository demo is [client_demo.py](client_demo.py). For local testing it
-reads the test-only `client2` credentials from `../test_material/certs/`.
-When handing the demo to an actual client, replace those three paths with the
-client-specific files supplied by the deployment owner and set the endpoint to
-the deployed server address.
+1. the client's Application certificate;
+2. the matching client Application private key;
+3. the server certificate (to pin it);
+4. the endpoint URL and the `SecurityPolicy / MessageSecurityMode` to use.
 
-Do not distribute the CA private key, server private key, a second client's
-private key, or the repository's `test_material/` directory.
+For **X.509 user authentication** you additionally need a **separate** user
+certificate/key pair (see `../README.md` §1 — Application Certificate and
+User Certificate are two different things and must not be mixed).
 
-Minimal asyncua configuration:
+## Minimal asyncua configuration
 
 ```python
+from asyncua import Client, ua
+from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
+
+client = Client("opc.tcp://127.0.0.1:48620/ua_mocker/")
+client.application_uri = "urn:example.org:FreeOpcUa:opcua-asyncio"  # must match the cert SAN URI
 await client.set_security(
     SecurityPolicyBasic256Sha256,
-    client_certificate,
-    client_private_key,
-    server_certificate=server_certificate,
+    "client_app_a_cert.pem",      # client Application certificate
+    "client_app_a_key.pem",       # client Application private key
+    server_certificate="server_cert.pem",
     mode=ua.MessageSecurityMode.SignAndEncrypt,
 )
+await client.connect()
 ```
+
+User identity (optional, choose one):
+
+```python
+# Anonymous (default): nothing to do.
+
+# UserName:
+client.set_user("test")
+client.set_password("test")
+
+# X.509 user certificate (different pair from the application certificate):
+await client.load_client_certificate("user_cert.pem")
+await client.load_private_key("user_key.pem")
+```
+
+Then `await client.connect()`.
+
+## Ready-made reference clients
+
+The repository provides ready-made probes and clients — see `../README.md`
+§8–§10:
+
+```bash
+python client/probe.py                 # list all endpoints
+python client/app_cert_client.py       # Application Certificate + Anonymous
+python client/username_client.py       # Application Certificate + UserName
+python client/x509_user_client.py      # Application Certificate + X.509 User
+python tests/positive_tests.py         # full positive suite
+python tests/negative_tests.py         # full negative suite
+```
+
+## Security notes
+
+Do not distribute the CA private key, the server private key, or the
+repository's `test_material/` directory to anyone. `test_material/certs/`
+is **development/test only** and must never be used as a production PKI.

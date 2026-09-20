@@ -1,10 +1,56 @@
-# OPC UA Mock Server 组态示例
-# 每种类型各 4 个节点：2 个 change=true writable=false，2 个 change=false writable=true
+# OPC UA X.509 Compatibility Mocker - Normal / compatibility scenario
+#
+# Single endpoint URL, multiple SecurityPolicies published:
+#   opc.tcp://0.0.0.0:48620/ua_mocker/
+#
+# asyncua 2.0.1 supports (SECURITY_POLICY_TYPE_MAP):
+#   Basic256Sha256        Sign / SignAndEncrypt
+#   Aes128Sha256RsaOaep   Sign / SignAndEncrypt
+#   Aes256Sha256RsaPss    Sign / SignAndEncrypt
+# NoSecurity (None/None) is NOT published by default (set no_security: true
+# only for negative-testing purposes).
+#
+# Run:
+#   python main.py config_x509.yaml
+
+scenario: normal
 
 server: "0.0.0.0"
 port: 48620
+endpoint_path: "/ua_mocker/"
 cycle: 1000
 namespace_index: 1
+
+application:
+  name: "ua_hda X.509 Compatibility Mocker"
+  uri: "urn:freeopcua:python:server"
+
+security:
+  policies:
+    - Basic256Sha256_Sign
+    - Basic256Sha256_SignAndEncrypt
+    - Aes128Sha256RsaOaep_Sign
+    - Aes128Sha256RsaOaep_SignAndEncrypt
+    - Aes256Sha256RsaPss_Sign
+    - Aes256Sha256RsaPss_SignAndEncrypt
+  # no_security: true   # 打开后会把 NoSecurity 端点也发布出来（仅用于负向验证）
+  application_certificate:
+    cert: "test_material/certs/server_cert.pem"
+    private_key: "test_material/certs/server_key.pem"
+  trust_store: "test_material/certs/trust"
+
+# User authentication. Two separate concepts (see README):
+#   Application Certificate  -> CreateSession (server validates via trust_store)
+#   User X.509 Certificate   -> ActivateSession / X509IdentityToken
+user_auth:
+  anonymous: true
+  username: true
+  users:
+    - username: "test"
+      password: "test"
+  x509: true
+  x509_user_cert: "test_material/certs/user_cert.pem"
+  x509_user_name: "x509_user"
 
 nodes:
   # Boolean: 2 个自变化只读 + 2 个固定可写
@@ -175,9 +221,3 @@ nodes:
     default: "2025-01-01T00:00:00Z"
     change: false
     writable: true
-# X.509 证书认证配置（可选项：不配置则无安全连接）
-security_policy:
-  - "Basic256Sha256_SignAndEncrypt"
-cert: "test_material/certs/server_cert.pem"
-private_key: "test_material/certs/server_key.pem"
-trust_store: "test_material/certs/trust"

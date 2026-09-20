@@ -1,0 +1,65 @@
+# OPC UA X.509 Compatibility Mocker - Self-signed server certificate scenario
+#
+#   opc.tcp://0.0.0.0:48621/ua_mocker/
+#
+# The server uses a SELF-SIGNED certificate (server_self_signed_cert.pem),
+# simulating a deployment that never obtained a CA-issued certificate.
+# Everything else (policies, trust store for client certs, user auth) is the
+# same as the normal scenario, proving the architecture handles it with just a
+# different certificate file in the config.
+#
+# Run:
+#   python main.py config_scenarios/self_signed_48621.yaml
+#
+# Client:
+#   python client/app_cert_client.py --url opc.tcp://127.0.0.1:48621/ua_mocker/
+#     --server-cert test_material/certs/server_self_signed_cert.pem
+
+scenario: self_signed
+
+server: "0.0.0.0"
+port: 48621
+endpoint_path: "/ua_mocker/"
+cycle: 1000
+namespace_index: 1
+
+application:
+  name: "ua_hda X.509 Mocker (self-signed)"
+  uri: "urn:freeopcua:python:server"
+
+security:
+  policies:
+    - Basic256Sha256_Sign
+    - Basic256Sha256_SignAndEncrypt
+  application_certificate:
+    cert: "../test_material/certs/server_self_signed_cert.pem"
+    private_key: "../test_material/certs/server_self_signed_key.pem"
+  trust_store: "../test_material/certs/trust"
+
+user_auth:
+  anonymous: true
+  username: true
+  users:
+    - username: "test"
+      password: "test"
+  x509: true
+  x509_user_cert: "../test_material/certs/user_cert.pem"
+  x509_user_name: "x509_user"
+
+nodes:
+  - name: "int32_ch_"
+    type: Int32
+    count: 2
+    change: true
+    writable: false
+  - name: "double_wr_"
+    type: Double
+    count: 2
+    default: 0.0
+    change: false
+    writable: true
+  - name: "string_ch_"
+    type: String
+    count: 2
+    change: true
+    writable: false
