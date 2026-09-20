@@ -49,8 +49,9 @@ application:
   uri: "urn:freeopcua:python:server"
 
 security:
+  # 目标场景固定：Basic256Sha256 + SignAndEncrypt（模拟产品加密通道）。
+  # 不发布 Sign endpoint，避免客户端 endpoint selection 选到 Sign 引入额外变量。
   policies:
-    - Basic256Sha256_Sign
     - Basic256Sha256_SignAndEncrypt
   discovery: true
   require_secured_session: true

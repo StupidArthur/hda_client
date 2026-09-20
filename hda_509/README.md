@@ -126,7 +126,7 @@ Application trust store，User Cert 只进 User whitelist，绝不混用。
 | 48621 | self-signed | `config_scenarios/self_signed_48621.yaml` | 服务端用自签名证书（client 必须 pin 该证书） |
 | 48625 | custom-uri | `config_scenarios/custom_uri_48625.yaml` | 非默认 ApplicationUri（`urn:ua-hda:test:custom-server`） |
 | 48626 | self-signed PKI | `config_self_signed.yaml` | **完全自签名 PKI**：服务端直接信任 self-signed 客户端 Application 证书（无 CA），Basic256Sha256 + SignAndEncrypt |
-| 48627 | self-signed + X.509 User | `config_self_signed_x509_user.yaml` | **组合认证**：self-signed Application Cert（Application trust）+ 独立 self-signed User Cert（X509IdentityToken / direct whitelist）；Anonymous/Username 禁用 |
+| 48627 | self-signed + X.509 User | `config_self_signed_x509_user.yaml` | **组合认证**：self-signed Application Cert（Application trust）+ 独立 self-signed User Cert（X509IdentityToken / direct whitelist）；Anonymous/Username 禁用；**只发布 Basic256Sha256 + SignAndEncrypt（不发布 Sign）** |
 
 场景差异全部由 YAML 配置表达（端口、证书路径、策略列表），代码共用
 `server_builder.py` 一个构建入口，方便以后增加更多场景（例如
@@ -475,6 +475,18 @@ python client/reference_client.py --url opc.tcp://127.0.0.1:48626/ua_mocker/ \
 ```
 
 ### Self-signed App + X.509 User 组合测试（48627）
+
+> **产品兼容性测试场景。**
+> 48627 用于模拟当前产品的加密通道与组合认证：SecurityPolicy 固定为
+> `Basic256Sha256`、MessageSecurityMode 固定为 `SignAndEncrypt`，不发布
+> `Sign` endpoint（避免客户端 endpoint selection 选到 `Sign` 引入额外变量）。
+>
+> **关于 User Certificate 的当前假设**：本场景假设用于 X509 User
+> Authentication 的 User Certificate 也是 self-signed，并由 mock server
+> 通过 **direct registration / DER whitelist** 识别。这是当前产品的兼容性
+> 假设，**不代表所有 OPC UA X509 User Certificate 部署都采用
+> self-signed / direct whitelist**（OPC UA 并没有规定 User Certificate
+> 默认就是 self-signed）。
 
 ```bash
 python main.py config_self_signed_x509_user.yaml

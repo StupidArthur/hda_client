@@ -42,6 +42,7 @@ import sys
 from pathlib import Path
 
 from cryptography import x509
+from asyncua import Client
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "client"))
@@ -52,6 +53,7 @@ from conn import (  # noqa: E402
     setup_client,
     stage_connect,
 )
+from endpoint_dump import short_policy_uri  # noqa: E402
 
 URL = "opc.tcp://127.0.0.1:48627/ua_mocker/"
 SS = Path(__file__).resolve().parents[1] / "test_material" / "self_signed"
@@ -153,6 +155,30 @@ async def assert_certificates_distinct() -> None:
     check = der_diff and pub_diff
     report("Application Cert != User Cert (DER 不同 + PublicKey 不同)", "PASS" if check else "FAIL",
            f"DER_diff={der_diff} pubkey_diff={pub_diff}")
+
+
+async def assert_endpoint_only_sign_and_encrypt() -> None:
+    """48627 只发布 Basic256Sha256 / SignAndEncrypt：严格断言 Sign 不存在。"""
+    disc = Client(URL)
+    try:
+        endpoints = await disc.connect_and_get_server_endpoints()
+    finally:
+        try:
+            await disc.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
+
+    modes: dict[str, set] = {}
+    for ep in endpoints:
+        modes.setdefault(short_policy_uri(ep.SecurityPolicyUri), set()).add(ep.SecurityMode.name)
+
+    has_sae = "SignAndEncrypt" in modes.get("Basic256Sha256", set())
+    has_sign = "Sign" in modes.get("Basic256Sha256", set())
+    ok = has_sae and not has_sign
+    report("48627 只发布 Basic256Sha256/SignAndEncrypt (无 Sign)",
+           "PASS" if ok else "FAIL",
+           f"Basic256Sha256 modes={sorted(modes.get('Basic256Sha256', set()))} "
+           f"total_secure_endpoints={sum(len(v) for v in modes.values())}")
 
 
 async def case_all_correct() -> None:
@@ -275,6 +301,7 @@ async def case_app_cert_as_user_cert() -> None:
 async def main() -> int:
     print("组合认证测试：self-signed Application Cert + 独立 self-signed User Cert (48627)\n")
     await assert_certificates_distinct()
+    await assert_endpoint_only_sign_and_encrypt()
     await case_all_correct()
     await case_untrusted_app_cert()
     await case_unregistered_user_cert()
