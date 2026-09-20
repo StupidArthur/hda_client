@@ -81,8 +81,11 @@ def _resolve_paths(base: Path, cfg: dict[str, Any]) -> None:
 
     user_auth = cfg.get("user_auth")
     if isinstance(user_auth, dict):
-        if user_auth.get("x509_user_cert"):
-            user_auth["x509_user_cert"] = _to_abs(base, user_auth["x509_user_cert"])
+        value = user_auth.get("x509_user_cert")
+        if isinstance(value, list):
+            user_auth["x509_user_cert"] = [_to_abs(base, v) for v in value]
+        elif value:
+            user_auth["x509_user_cert"] = _to_abs(base, value)
 
 
 def load_config(config_path: str | Path) -> dict[str, Any]:

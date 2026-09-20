@@ -138,9 +138,13 @@ async def stage_connect(
     policy_name: str = "Basic256Sha256",
     mode_name: str = "SignAndEncrypt",
     print_steps: bool = True,
+    skip_endpoints: bool = False,
 ) -> Client:
     """
     分阶段连接并返回处于 Activated 状态的 client（后续可直接读节点）。
+
+    skip_endpoints=True 时跳过 GetEndpoints / Endpoint selection（例如
+    证书/私钥不匹配的负向测试需要从 OpenSecureChannel 阶段直接观察失败）。
 
     任一阶段失败都会抛出 StageFailed，保留原始 exception（其 message 里
     包含 OPC UA StatusCode 如 BadCertificateUntrusted / BadIdentityTokenRejected）。
@@ -154,26 +158,27 @@ async def stage_connect(
         if print_steps:
             print(f"  [{stage_no[stage]}] {stage:<18} OK {detail}")
 
-    # [1] GetEndpoints
-    try:
-        endpoints = await fetch_endpoints(client)
-        client._endpoints = endpoints
-        _ok("GetEndpoints", f"({len(endpoints)} endpoint(s))")
-    except BaseException as e:  # noqa: BLE001
-        raise StageFailed("GetEndpoints", e)
+    if not skip_endpoints:
+        # [1] GetEndpoints
+        try:
+            endpoints = await fetch_endpoints(client)
+            client._endpoints = endpoints
+            _ok("GetEndpoints", f"({len(endpoints)} endpoint(s))")
+        except BaseException as e:  # noqa: BLE001
+            raise StageFailed("GetEndpoints", e)
 
-    # [2] Endpoint selection
-    try:
-        ep = find_endpoint(client, policy_name, mode_name)
-        if ep is None:
-            raise ua.UaError(
-                f"No matching endpoint for {_policy_label(policy_name, mode_name)}. "
-                f"Server exposes: "
-                f"{sorted({f'{e.SecurityPolicyUri} / {e.SecurityMode.name}' for e in endpoints})}"
-            )
-        _ok("Endpoint selection", ep.SecurityPolicyUri)
-    except BaseException as e:  # noqa: BLE001
-        raise StageFailed("Endpoint selection", e)
+        # [2] Endpoint selection
+        try:
+            ep = find_endpoint(client, policy_name, mode_name)
+            if ep is None:
+                raise ua.UaError(
+                    f"No matching endpoint for {_policy_label(policy_name, mode_name)}. "
+                    f"Server exposes: "
+                    f"{sorted({f'{e.SecurityPolicyUri} / {e.SecurityMode.name}' for e in endpoints})}"
+                )
+            _ok("Endpoint selection", ep.SecurityPolicyUri)
+        except BaseException as e:  # noqa: BLE001
+            raise StageFailed("Endpoint selection", e)
 
     # [3] OpenSecureChannel
     try:

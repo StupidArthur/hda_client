@@ -33,7 +33,13 @@ security:
     - Aes128Sha256RsaOaep_SignAndEncrypt
     - Aes256Sha256RsaPss_Sign
     - Aes256Sha256RsaPss_SignAndEncrypt
-  # no_security: true   # 打开后会把 NoSecurity 端点也发布出来（仅用于负向验证）
+  # 发布一个 None/None 的 discovery-only 端点：
+  #   第三方客户端可以在 unsecured 通道上调用 GetEndpoints / FindServers
+  #   获取 ServerCertificate 与安全端点列表；
+  #   但任何在无保护通道上建立的 Session 都会被拒绝
+  #   （require_secured_session: true，见 README「Discovery」一节）。
+  discovery: true
+  require_secured_session: true
   application_certificate:
     cert: "test_material/certs/server_cert.pem"
     private_key: "test_material/certs/server_key.pem"
@@ -42,6 +48,10 @@ security:
 # User authentication. Two separate concepts (see README):
 #   Application Certificate  -> CreateSession (server validates via trust_store)
 #   User X.509 Certificate   -> ActivateSession / X509IdentityToken
+# X.509 User 校验语义 = direct（精确 DER 白名单 + 有效期检查）。
+# 这里同时注册 user_cert.pem 与 user_expired_cert.pem：
+#   user_cert.pem        正常用户，认证通过
+#   user_expired_cert.pem 已在白名单但已过期 -> 有效期检查拒绝（负向测试）
 user_auth:
   anonymous: true
   username: true
@@ -49,7 +59,10 @@ user_auth:
     - username: "test"
       password: "test"
   x509: true
-  x509_user_cert: "test_material/certs/user_cert.pem"
+  x509_validation: direct
+  x509_user_cert:
+    - "test_material/certs/user_cert.pem"
+    - "test_material/certs/user_expired_cert.pem"
   x509_user_name: "x509_user"
 
 nodes:

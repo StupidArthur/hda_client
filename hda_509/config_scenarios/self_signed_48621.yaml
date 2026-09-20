@@ -31,6 +31,8 @@ security:
   policies:
     - Basic256Sha256_Sign
     - Basic256Sha256_SignAndEncrypt
+  discovery: true
+  require_secured_session: true
   application_certificate:
     cert: "../test_material/certs/server_self_signed_cert.pem"
     private_key: "../test_material/certs/server_self_signed_key.pem"
@@ -43,7 +45,10 @@ user_auth:
     - username: "test"
       password: "test"
   x509: true
-  x509_user_cert: "../test_material/certs/user_cert.pem"
+  x509_validation: direct
+  x509_user_cert:
+    - "../test_material/certs/user_cert.pem"
+    - "../test_material/certs/user_expired_cert.pem"
   x509_user_name: "x509_user"
 
 nodes:

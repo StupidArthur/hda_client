@@ -51,19 +51,43 @@ await client.load_private_key("user_key.pem")
 
 Then `await client.connect()`.
 
+## Discovery
+
+A third-party client usually does NOT know the server certificate in advance.
+The standard flow works against this mocker:
+
+```bash
+python client/discovery_probe.py   # unsecured GetEndpoints -> list everything
+```
+
+The mocker publishes a discovery-only `None/None` endpoint (`security.discovery:
+true`). Unsecured `GetEndpoints / FindServers` are allowed, but **any Session
+over an unsecured channel is rejected** — Sessions must use a secure endpoint
+(`security.require_secured_session: true`).
+
 ## Ready-made reference clients
 
 The repository provides ready-made probes and clients — see `../README.md`
 §8–§10:
 
 ```bash
-python client/probe.py                 # list all endpoints
+python client/discovery_probe.py       # unsecured discovery probe
+python client/probe.py                 # secured GetEndpoints probe
 python client/app_cert_client.py       # Application Certificate + Anonymous
 python client/username_client.py       # Application Certificate + UserName
 python client/x509_user_client.py      # Application Certificate + X.509 User
 python tests/positive_tests.py         # full positive suite
 python tests/negative_tests.py         # full negative suite
 ```
+
+## X.509 User authentication semantics
+
+The mocker's X.509 user validation is **direct mode**: the presented user
+certificate must exactly match a registered certificate (the user-manager
+whitelist) AND be within its validity period. It is NOT a full user PKI
+(no CA-chain trust for user certs, no CRL). Application certificates, by
+contrast, are validated against the server trust store (Test CA) at
+CreateSession.
 
 ## Security notes
 

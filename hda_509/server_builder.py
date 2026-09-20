@@ -19,8 +19,11 @@ asyncua 2.0.1 说明：
         Aes128Sha256RsaOaep   Sign / SignAndEncrypt
         Aes256Sha256RsaPss    Sign / SignAndEncrypt
 
-    Normal Server 默认不开放 None/None。若需要可在组态
-    security.no_security: true 打开。
+    Normal Server 默认发布 discovery-only None 端点（security.discovery:
+    true）+ 6 个加密端点。None 端点仅用于 unsecured GetEndpoints /
+    FindServers（第三方客户端发现流程）；任何在无保护通道上建立的
+    Session 都会被拒绝（security.require_secured_session: true，由
+    CombinedUserManager 强制）。
 
     客户端 Application Certificate 在 CreateSession 阶段由
     CertificateValidator 校验（TRUSTED_VALIDATION | PEER_CLIENT）：
@@ -29,8 +32,12 @@ asyncua 2.0.1 说明：
       KEY_USAGE / EXT_KEY_USAGE -> BadCertificateUseNotAllowed
       TRUSTED    -> BadCertificateUntrusted
 
-    用户 X.509 证书在 ActivateSession 阶段由 CombinedUserManager 校验，
-    与上面的 Application Certificate 校验是两条完全独立的链路。
+    用户 X.509 证书在 ActivateSession 阶段由 CombinedUserManager 校验
+    （direct 模式：精确 DER 白名单 + 有效期检查），与上面的 Application
+    Certificate 校验是两条完全独立的链路。
+
+    权限：MockerRoleRuleset 让 Anonymous 身份（UserRole.Anonymous）也能
+    读取 mock 测试节点；身份认证与授权角色分开处理。
 """
 
 import logging
@@ -38,6 +45,12 @@ from pathlib import Path
 from typing import Any
 
 from asyncua import Server, ua
+from asyncua.crypto.permission_rules import (
+    ADMIN_TYPES,
+    USER_TYPES,
+    PermissionRuleset,
+    UserRole,
+)
 from asyncua.crypto.truststore import TrustStore
 from asyncua.crypto.validator import CertificateValidator, CertificateValidatorOptions
 
@@ -45,6 +58,30 @@ from user_manager import CombinedUserManager
 from user_token_tracking import UserTokenAwareInternalServer
 
 logger = logging.getLogger(__name__)
+
+
+class MockerRoleRuleset(PermissionRuleset):
+    """Mock 场景的权限规则。
+
+    asyncua 默认的 SimpleRoleRuleset 给 UserRole.Anonymous 空权限，会导致
+    Anonymous 连测试节点都读不了。这里明确区分「身份认证」与「授权角色」：
+    - Anonymous 身份仍是 UserRole.Anonymous（不是 User）
+    - 但作为 mock，授予 Anonymous 与 User 相同的用户级服务权限
+      （读 / 写 / 浏览 / 订阅等），仍不授予 Admin 级服务
+      （改地址空间 / RegisterServer 等）。
+    """
+
+    def __init__(self) -> None:
+        admin_ids = set(map(ua.NodeId, ADMIN_TYPES))
+        user_ids = set(map(ua.NodeId, USER_TYPES))
+        self._permission_dict = {
+            UserRole.Admin: admin_ids | user_ids,
+            UserRole.User: user_ids,
+            UserRole.Anonymous: user_ids,
+        }
+
+    def check_validity(self, user, action_type_id, body):
+        return action_type_id in self._permission_dict[user.role]
 
 # 策略名 -> ua.SecurityPolicyType。NoSecurity 仅当组态显式开启时才加入。
 POLICY_NAME_TO_TYPE = {
@@ -67,10 +104,19 @@ def _policy_names(cfg: dict[str, Any]) -> list[str]:
         names = [str(p) for p in cfg["security_policy"]]
     else:
         names = ["Basic256Sha256_SignAndEncrypt"]
-    if isinstance(security, dict) and security.get("no_security"):
+    # discovery: 发布一个 None/None 的 discovery-only 端点（Session 仍被拒绝）。
+    if isinstance(security, dict) and security.get("discovery"):
         if "NoSecurity" not in names:
             names = ["NoSecurity"] + names
     return names
+
+
+def _require_secured_session(cfg: dict[str, Any]) -> bool:
+    """Session 是否必须建立在受保护通道上（默认 True）。"""
+    security = cfg.get("security")
+    if isinstance(security, dict) and "require_secured_session" in security:
+        return bool(security["require_secured_session"])
+    return True
 
 
 def _load_trust(trust_dir: Path) -> TrustStore:
@@ -126,6 +172,16 @@ def _user_auth_config(cfg: dict[str, Any]) -> dict[str, Any]:
     return {"anonymous": True, "username": False, "x509": False}
 
 
+def _x509_user_cert_paths(user_auth: dict[str, Any]) -> list[Path]:
+    """x509_user_cert 可以是单个字符串路径或路径列表。"""
+    value = user_auth.get("x509_user_cert")
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [Path(str(p)) for p in value]
+    return [Path(str(value))]
+
+
 async def build_server(cfg: dict[str, Any]) -> Server:
     """
     根据组态构建一个配置完成的 asyncua Server（未启动，由调用方 start）。
@@ -137,14 +193,14 @@ async def build_server(cfg: dict[str, Any]) -> Server:
 
     # ---- 应用描述 ---------------------------------------------------------
     application = cfg.get("application")
+    application_name = "ua_hda X.509 Compatibility Mocker"
+    application_uri = "urn:freeopcua:python:server"
     if isinstance(application, dict):
         if application.get("name"):
-            server.name = application["name"]
+            application_name = application["name"]
         if application.get("uri"):
-            server.application_uri = application["uri"]
-    else:
-        server.name = "ua_hda X.509 Compatibility Mocker"
-        server.application_uri = "urn:freeopcua:python:server"
+            application_uri = application["uri"]
+    server.name = application_name
 
     endpoint_path = cfg.get("endpoint_path", "/ua_mocker/")
     host = cfg["server"]
@@ -154,6 +210,17 @@ async def build_server(cfg: dict[str, Any]) -> Server:
     logger.info("OPC UA 端点: %s", endpoint)
 
     await server.init()
+    # 注意：application_uri 必须用 asyncua 的正式 API 设置。直接给
+    # server.application_uri 赋值不会生效——asyncua 内部使用的是
+    # _application_uri，且没有 property setter，默认值会一直保留。
+    # set_application_uri() 会同步更新 NamespaceArray[1]，但不会更新
+    # ServerArray（init() 时写入的仍是默认值），这里一并修正，保证
+    # EndpointDescription.Server.ApplicationUri / ServerArray /
+    # NamespaceArray[1] 一致。
+    await server.set_application_uri(application_uri)
+    sa_node = server.get_node(ua.NodeId(ua.ObjectIds.Server_ServerArray))
+    await sa_node.write_value([application_uri])
+    logger.info("ApplicationUri: %s", application_uri)
 
     # ---- 安全策略与证书 ----------------------------------------------------
     policy_names = _policy_names(cfg)
@@ -163,7 +230,7 @@ async def build_server(cfg: dict[str, Any]) -> Server:
         raise ValueError(
             f"不支持的安全策略: {e}，可选: {list(POLICY_NAME_TO_TYPE.keys())}"
         ) from e
-    server.set_security_policy(policies)
+    server.set_security_policy(policies, permission_ruleset=MockerRoleRuleset())
     logger.info("安全策略: %s", policy_names)
 
     cert_path, key_path = _cert_and_key(cfg)
@@ -194,19 +261,19 @@ async def build_server(cfg: dict[str, Any]) -> Server:
         for u in user_auth.get("users", [])
         if isinstance(u, dict) and u.get("username")
     }
-    x509_paths: list[Path] = []
-    if user_auth.get("x509_user_cert"):
-        x509_paths = [Path(user_auth["x509_user_cert"])]
+    x509_paths = _x509_user_cert_paths(user_auth)
     user_manager = CombinedUserManager(
         allow_anonymous=user_auth.get("anonymous", True),
         users=users,
         x509_user_cert_paths=x509_paths,
         x509_user_name=user_auth.get("x509_user_name", "x509_user"),
+        require_secured_channel=_require_secured_session(cfg),
     )
     server.iserver.set_user_manager(user_manager)
-    logger.info("用户认证: anonymous=%s username=%s x509=%s",
+    logger.info("用户认证: anonymous=%s username=%s x509=%s require_secured_session=%s",
                 user_auth.get("anonymous", True),
                 bool(users),
-                bool(x509_paths))
+                bool(x509_paths),
+                _require_secured_session(cfg))
 
     return server

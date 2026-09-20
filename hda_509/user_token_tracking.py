@@ -52,13 +52,18 @@ def _token_kind(id_token) -> str:
 
 
 class UserTokenAwareSession(InternalSession):
-    """在 ActivateSession 开始时记录本次使用的用户令牌类型。"""
+    """在 ActivateSession 开始时记录本次使用的用户令牌类型与通道是否受保护。"""
 
     def activate_session(self, params, peer_certificate):
         kind = _token_kind(params.UserIdentityToken)
+        # peer_certificate 参数是建立通道时对方（客户端）的 Application 证书：
+        # 受保护通道非空，None/unsecured 通道为空 bytes。必须在 X509IdentityToken
+        # 覆盖该变量之前记录，这样无论令牌类型如何都能判断底层通道是否受保护。
+        channel_secured = bool(peer_certificate)
         # 同步窗口：设置后随即调用父类 activate_session()，期间无 await，
         # get_user() 同步执行，因此不存在跨会话竞争。
         self.iserver._last_user_token_kind = kind  # type: ignore[attr-defined]
+        self.iserver._last_channel_secured = channel_secured  # type: ignore[attr-defined]
         return super().activate_session(params, peer_certificate)
 
 

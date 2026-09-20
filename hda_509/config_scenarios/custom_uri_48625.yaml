@@ -1,0 +1,69 @@
+# OPC UA X.509 Compatibility Mocker - Custom ApplicationUri scenario
+#
+#   opc.tcp://0.0.0.0:48625/ua_mocker/
+#
+# Proves that a NON-default ApplicationUri is actually applied:
+#   application.uri = urn:ua-hda:test:custom-server
+# must appear in:
+#   - EndpointDescription.Server.ApplicationUri
+#   - ServerArray / NamespaceArray
+#   - Server Application Certificate SAN URI
+# The server certificate used here is server_custom_uri_cert.pem whose SAN URI
+# matches the custom ApplicationUri.
+#
+# Run:
+#   python main.py config_scenarios/custom_uri_48625.yaml
+#
+# Verify:
+#   python client/probe.py --url opc.tcp://127.0.0.1:48625/ua_mocker/ \
+#       --server-cert test_material/certs/server_custom_uri_cert.pem
+#   python tests/custom_application_uri_tests.py
+
+scenario: custom_uri
+
+server: "0.0.0.0"
+port: 48625
+endpoint_path: "/ua_mocker/"
+cycle: 1000
+namespace_index: 1
+
+application:
+  name: "ua_hda X.509 Mocker (custom uri)"
+  uri: "urn:ua-hda:test:custom-server"
+
+security:
+  policies:
+    - Basic256Sha256_Sign
+    - Basic256Sha256_SignAndEncrypt
+  discovery: true
+  require_secured_session: true
+  application_certificate:
+    cert: "../test_material/certs/server_custom_uri_cert.pem"
+    private_key: "../test_material/certs/server_custom_uri_key.pem"
+  trust_store: "../test_material/certs/trust"
+
+user_auth:
+  anonymous: true
+  username: true
+  users:
+    - username: "test"
+      password: "test"
+  x509: true
+  x509_validation: direct
+  x509_user_cert:
+    - "../test_material/certs/user_cert.pem"
+    - "../test_material/certs/user_expired_cert.pem"
+  x509_user_name: "x509_user"
+
+nodes:
+  - name: "int32_ch_"
+    type: Int32
+    count: 2
+    change: true
+    writable: false
+  - name: "double_wr_"
+    type: Double
+    count: 2
+    default: 0.0
+    change: false
+    writable: true
