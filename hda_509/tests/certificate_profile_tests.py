@@ -271,6 +271,30 @@ def main() -> int:
           and "urn:example.org:FreeOpcUa:selfsigned-client" not in san_uris(ss_wrong),
           str(san_uris(ss_wrong)))
 
+    # ---- Self-signed User Certificates (user/, X509IdentityToken) -------------
+    ss_user = x509.load_pem_x509_certificate((SS_DIR / "user" / "user_self_signed_cert.pem").read_bytes())
+    check("ss_user: 自签名(issuer==subject)", ss_user.issuer == ss_user.subject)
+    check("ss_user: EKU clientAuth", ExtendedKeyUsageOID.CLIENT_AUTH in eku(ss_user))
+    check("ss_user: ca=False 且 keyCertSign=False（不是信任锚）",
+          ss_user.extensions.get_extension_for_class(x509.BasicConstraints).value.ca is False
+          and key_usage(ss_user).key_cert_sign is False)
+    check("ss_user: SAN URI", "urn:example.org:FreeOpcUa:selfsigned-user" in san_uris(ss_user))
+    check("ss_user: SKI+AKI", has_extension(ss_user, x509.SubjectKeyIdentifier)
+          and has_extension(ss_user, x509.AuthorityKeyIdentifier))
+    check_validity("ss_user", ss_user, expired=False)
+
+    ss_user_expired = x509.load_pem_x509_certificate((SS_DIR / "user" / "user_self_signed_expired_cert.pem").read_bytes())
+    check_validity("ss_user_expired", ss_user_expired, expired=True)
+
+    # ---- Application Certificate 与 User Certificate 必须不同 -----------------
+    from cryptography.hazmat.primitives import serialization as _ser
+    ss_app_pub = ss_client.public_key().public_bytes(_ser.Encoding.DER, _ser.PublicFormat.SubjectPublicKeyInfo)
+    ss_user_pub = ss_user.public_key().public_bytes(_ser.Encoding.DER, _ser.PublicFormat.SubjectPublicKeyInfo)
+    check("ss App cert != ss User cert (DER + PublicKey 不同)",
+          (SS_DIR / "client" / "client_self_signed_cert.pem").read_bytes()
+          != (SS_DIR / "user" / "user_self_signed_cert.pem").read_bytes()
+          and ss_app_pub != ss_user_pub)
+
     print("\n汇总：")
     failed = [n for n, o, _ in RESULTS if o.startswith("FAIL")]
     for name, outcome, detail in RESULTS:

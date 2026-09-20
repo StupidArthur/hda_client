@@ -36,11 +36,22 @@ KeyUsage.keyCertSign=True so each can act as its own trust anchor):
              - client_self_signed_expired_cert.pem     (expired)
              - client_self_signed_wrong_uri_cert.pem   (SAN URI mismatch)
              - client_self_signed_mismatch_key.pem     (key not matching the cert)
-  trust/     server trust store: the single trusted self-signed client cert
+  user/      self-signed User Certificates (X509IdentityToken)
+             EKU clientAuth, SAN = {User ApplicationUri}
+             - user_self_signed_cert.pem  (REGISTERED in the user-manager whitelist)
+             - user_self_signed_unregistered_cert.pem (NOT registered)
+             - user_self_signed_expired_cert.pem      (expired)
+             - user_self_signed_wrong_key.pem         (key not matching the cert)
+  trust/     server Application trust store: the single trusted self-signed
+             client Application cert
 
-Application Certificates and User Certificates stay separate concepts — this
-PKI contains only Application Certificates (SecureChannel / application
-authentication). TEST ONLY, never use as a production PKI.
+Two trust domains are kept strictly separate:
+  Application Trust  = server Application trust store  (trust/) -> CreateSession
+  User Authentication = user-manager direct whitelist  (user/)  -> ActivateSession
+A User Certificate must never be placed in the Application trust store, and
+the Client Application Certificate must never be registered as a user.
+
+TEST ONLY, never use as a production PKI.
 """
 
 import datetime
@@ -58,16 +69,18 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 BASE = Path(__file__).resolve().parent
 SERVER_DIR = BASE / "server"
 CLIENT_DIR = BASE / "client"
+USER_DIR = BASE / "user"
 TRUST_DIR = BASE / "trust"
-for d in (SERVER_DIR, CLIENT_DIR, TRUST_DIR):
+for d in (SERVER_DIR, CLIENT_DIR, USER_DIR, TRUST_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
-# Identity constants (must match config_self_signed.yaml)
+# Identity constants (must match config_self_signed.yaml / config_self_signed_x509_user.yaml)
 # ---------------------------------------------------------------------------
 SERVER_APP_URI = "urn:freeopcua:python:server"
 CLIENT_SELF_SIGNED_URI = "urn:example.org:FreeOpcUa:selfsigned-client"
 WRONG_URI = "urn:example.org:FreeOpcUa:selfsigned-wrong-uri"
+USER_SELF_SIGNED_URI = "urn:example.org:FreeOpcUa:selfsigned-user"
 
 ORG = "ua_hda test"
 VALID_DAYS = 365 * 5
@@ -111,6 +124,45 @@ def build_self_signed_app_cert(
     application certificates must be able to vouch for themselves; it is the
     trust anchor here). Includes SKI + AKI (self).
     """
+    return _build_self_signed(
+        cn, key, san=san, eku=eku, key_cert_sign=True,
+        not_valid_before=not_valid_before, not_valid_after=not_valid_after,
+    )
+
+
+def build_self_signed_user_cert(
+    cn: str,
+    key: rsa.RSAPrivateKey,
+    *,
+    san: list[x509.GeneralName],
+    not_valid_before: datetime.datetime | None = None,
+    not_valid_after: datetime.datetime | None = None,
+) -> x509.Certificate:
+    """Self-signed OPC UA User Certificate (X509IdentityToken).
+
+    A USER identity certificate — deliberately NOT an Application Certificate:
+    BasicConstraints.ca=False and KeyUsage.keyCertSign=False (it is not a
+    trust anchor, it is only used to sign the UserTokenSignature during
+    ActivateSession). Same reasonable profile otherwise (EKU clientAuth,
+    SAN, SKI, AKI, validity).
+    """
+    return _build_self_signed(
+        cn, key, san=san, eku=ExtendedKeyUsageOID.CLIENT_AUTH, key_cert_sign=False,
+        not_valid_before=not_valid_before, not_valid_after=not_valid_after,
+    )
+
+
+def _build_self_signed(
+    cn: str,
+    key: rsa.RSAPrivateKey,
+    *,
+    san: list[x509.GeneralName],
+    eku: x509.ObjectIdentifier,
+    key_cert_sign: bool,
+    not_valid_before: datetime.datetime | None = None,
+    not_valid_after: datetime.datetime | None = None,
+) -> x509.Certificate:
+    """Self-signed cert builder shared by app certificates and user certificates."""
     name = x509.Name([
         x509.NameAttribute(NameOID.COMMON_NAME, cn),
         x509.NameAttribute(NameOID.ORGANIZATION_NAME, ORG),
@@ -131,7 +183,7 @@ def build_self_signed_app_cert(
                 key_encipherment=True,
                 data_encipherment=True,
                 key_agreement=False,
-                key_cert_sign=True,   # self-signed app cert: its own trust anchor
+                key_cert_sign=key_cert_sign,
                 crl_sign=False,
                 encipher_only=False,
                 decipher_only=False,
@@ -235,6 +287,50 @@ def main() -> None:
     mismatch_key = gen_key()
     dump_key(CLIENT_DIR / "client_self_signed_mismatch_key.pem", mismatch_key)
     print(f"  [Client key mismatch] {CLIENT_DIR / 'client_self_signed_mismatch_key.pem'}")
+
+    # ---- REGISTERED self-signed User Certificate ----------------------------
+    # Independent from the Client Application Certificate (different key pair).
+    # Used by config_self_signed_x509_user.yaml as the registered X.509 user.
+    user_key = gen_key()
+    user_cert = build_self_signed_user_cert(
+        "ua_hda X509 Mocker User (self-signed)",
+        user_key,
+        san=client_san(USER_SELF_SIGNED_URI),
+    )
+    dump_key(USER_DIR / "user_self_signed_key.pem", user_key)
+    dump_cert(USER_DIR / "user_self_signed_cert.pem", user_cert)
+    print(f"  [User (registered)] {USER_DIR / 'user_self_signed_cert.pem'}")
+
+    # ---- Unregistered self-signed User Certificate ---------------------------
+    # Not in the user-manager whitelist -> ActivateSession rejected.
+    user_unreg_key = gen_key()
+    user_unreg_cert = build_self_signed_user_cert(
+        "ua_hda X509 Mocker User Unregistered (self-signed)",
+        user_unreg_key,
+        san=client_san(USER_SELF_SIGNED_URI),
+    )
+    dump_key(USER_DIR / "user_self_signed_unregistered_key.pem", user_unreg_key)
+    dump_cert(USER_DIR / "user_self_signed_unregistered_cert.pem", user_unreg_cert)
+    print(f"  [User unregistered] {USER_DIR / 'user_self_signed_unregistered_cert.pem'}")
+
+    # ---- Expired self-signed User Certificate --------------------------------
+    # Registered certs are checked for validity too -> expired user is rejected.
+    user_expired_key = gen_key()
+    user_expired_cert = build_self_signed_user_cert(
+        "ua_hda X509 Mocker User Expired (self-signed)",
+        user_expired_key,
+        san=client_san(USER_SELF_SIGNED_URI),
+        not_valid_before=NOW - datetime.timedelta(days=30),
+        not_valid_after=NOW - datetime.timedelta(days=1),
+    )
+    dump_key(USER_DIR / "user_self_signed_expired_key.pem", user_expired_key)
+    dump_cert(USER_DIR / "user_self_signed_expired_cert.pem", user_expired_cert)
+    print(f"  [User expired]      {USER_DIR / 'user_self_signed_expired_cert.pem'}")
+
+    # ---- Wrong private key (does not match user_self_signed_cert.pem) --------
+    user_wrong_key = gen_key()
+    dump_key(USER_DIR / "user_self_signed_wrong_key.pem", user_wrong_key)
+    print(f"  [User wrong key]    {USER_DIR / 'user_self_signed_wrong_key.pem'}")
 
     print("\nSelf-signed test PKI regenerated.")
 
