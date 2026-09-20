@@ -47,19 +47,25 @@ connect（None / unsecured discovery）
 ```
 
 实现方式（`security.discovery: true`，默认开启）：
-* 服务器发布一个 **discovery-only** 的 `None/None` 端点，用于 unsecured
+* 底层 BinaryServer **保留 `SecurityPolicyNone` policy factory**，因此客户端
+  可以用 `MessageSecurityMode None` 建立临时 SecureChannel 走 unsecured
   `GetEndpoints / FindServers`；
-* 但 `security.require_secured_session: true`（默认）——**任何在无保护通道上
-  建立的 Session 都会被拒绝**（`BadUserAccessDenied`）。
+* 但 `GetEndpoints` **只返回 6 个真正支持 Session 的 secure endpoints**，
+  **不暴露 None/None Session Endpoint**（通过 asyncua 2.0.1 的 Server 子类
+  `DiscoveryCleanServer` 清理，见 `server_builder.py`）；
+* `security.require_secured_session: true`（默认）——**任何在无保护通道上
+  建立的 Session 都会被拒绝**（客户端无法匹配到 None Session Endpoint，
+  且 UserManager 也拒绝无保护通道激活）。
 * 也就是说：**Discovery 可以无保护，Session 必须走安全端点**。
 
 > asyncua 2.0.1 限制说明：
 > asyncua 的 `Server` 把「None 通道能否建立」和「是否发布 None 端点」绑定在
 > 一起（`_setup_server_nodes` 中二者同时发生）。它本身不区分
-> "discovery-only None" 与 "完整 None Session"。我们通过 `UserManager`
-> 拒绝所有在无保护通道上的 Session 激活来实现 discovery-only 语义（见
-> `user_manager.py` 的 `require_secured_channel` / `user_token_tracking.py`
-> 的 `_last_channel_secured`），这是 asyncua 2.0.1 能达到的最接近标准的行为。
+> "discovery-only None" 与 "完整 None Session"。我们通过绑定 asyncua 2.0.1 的
+> `DiscoveryCleanServer` 子类在 `_setup_server_nodes()` 后保留
+> `SecurityPolicyNone` factory、同时把 None/None EndpointDescription 从
+> `iserver.endpoints` 移除，达到「unsecured Discovery 可用 + 不暴露 None
+> Session Endpoint」的效果（见 `server_builder.py`），不修改 asyncua 源码。
 
 ### SecurityPolicy / MessageSecurityMode
 
@@ -71,8 +77,9 @@ asyncua 2.0.1 实际支持并启用（见 `asyncua.crypto.security_policies.SECU
 | Aes128Sha256RsaOaep   | ✅   | ✅             |
 | Aes256Sha256RsaPss    | ✅   | ✅             |
 
-Normal Server（48620）默认发布：**1 个 discovery None 端点 + 以上 6 个加密端点**
-（共 7 个）。通过 `security.policies` 配置可增减。
+Normal Server（48620）默认发布以上全部 **6 个**加密 Endpoint（GetEndpoints
+只返回这 6 个 secure endpoints，**不暴露 None/None Session Endpoint**）。
+通过 `security.policies` 配置可增减。
 
 > asyncua 2.0.1 不支持的组合（如 Basic128Rsa15 之外的遗留策略等）我们
 > 没有伪造支持，只启用上面列表里的组合。
@@ -106,7 +113,7 @@ Normal Server（48620）默认发布：**1 个 discovery None 端点 + 以上 6 
 
 | 端口 | 场景 | 组态 | 说明 |
 |------|------|------|------|
-| 48620 | normal | `config_x509.yaml` | CA 签发证书，discovery + 全部 6 个加密端点 |
+| 48620 | normal | `config_x509.yaml` | CA 签发证书，GetEndpoints 返回全部 6 个加密端点 |
 | 48621 | self-signed | `config_scenarios/self_signed_48621.yaml` | 服务端用自签名证书（client 必须 pin 该证书） |
 | 48625 | custom-uri | `config_scenarios/custom_uri_48625.yaml` | 非默认 ApplicationUri（`urn:ua-hda:test:custom-server`） |
 
@@ -220,9 +227,10 @@ client_app_wrong_uri_cert.pem / _key.pem       客户端证书（SAN URI 错误�
 client_app_expired_cert.pem / _key.pem         客户端证书（已过期，负向测试）
 client_app_untrusted_cert.pem / _key.pem       客户端证书（自签名，未受信，负向测试）
 client_app_a_mismatch_key.pem                  与证书不匹配的私钥（负向测试）
-user_cert.pem / user_key.pem                   X.509 用户证书（用户认证）
+user_cert.pem / user_key.pem                   X.509 用户证书（用户认证，在白名单）
+user_unregistered_cert.pem / _key.pem          CA 签发、profile 合法但【不在白名单】（负向测试）
 user_expired_cert.pem / _key.pem               已过期的用户证书（在白名单但过期 -> 拒绝）
-user_untrusted_cert.pem / _key.pem             未受信用户证书（负向测试）
+user_untrusted_cert.pem / _key.pem             self-signed 用户证书（malformed/profile 不合规）
 user_wrong_key.pem                             与用户证书不匹配的私钥（负向测试）
 trust/ca_cert.pem                              服务端信任存储（Test CA）
 ```
@@ -255,8 +263,9 @@ python client/discovery_probe.py
 ```
 
 它**不需要预先知道 server 证书或安全参数**：走 unsecured discovery →
-`GetEndpoints` → 打印全部端点（None + 6 个安全端点）与 Server 证书详情，
-并验证 unsecured Session 被拒绝（discovery-only 语义）。
+`GetEndpoints` → 打印全部端点（**6 个 secure endpoints**，不含 None/None）
+与 Server 证书详情，并验证 unsecured Session 无法建立（不暴露 None Session
+Endpoint）。
 
 ```bash
 # 查看其它场景
@@ -297,7 +306,7 @@ python client/reference_client.py --auth x509 --policy Aes256Sha256RsaPss --mode
 参考客户端输出分阶段结果：
 
 ```text
-[1] GetEndpoints          OK (7 endpoint(s))
+[1] GetEndpoints          OK (6 endpoint(s))
 [2] Endpoint selection    OK http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256
 [3] OpenSecureChannel     OK
 [4] CreateSession         OK
@@ -330,7 +339,8 @@ python tests/positive_tests.py --with-custom-uri      # 加测 48625
 正向测试包含 **endpoint 发现断言**：逐个检查发布的安全端点
 （`Basic256Sha256 / Aes128_Sha256_RsaOaep / Aes256_Sha256_RsaPss` ×
 `Sign / SignAndEncrypt`）的 Policy URI、SecurityMode、UserIdentityTokens
-（Anonymous+UserName+Certificate），而不是只看数量。
+（Anonymous+UserName+Certificate），并断言 GetEndpoints **不暴露 None/None
+Session Endpoint**，而不是只看数量。
 
 ### 负向测试（严格 PASS/FAIL）
 
@@ -345,14 +355,15 @@ python tests/negative_tests.py --with-self-signed   # 加测 48621 错误 pin
 
 | 用例 | 期望结果 |
 |------|----------|
-| NoSecurity | unsecured Session 被拒绝（discovery 可用但 Session 必须安全） |
+| NoSecurity | unsecured Session 被拒绝（服务器在线但不暴露 None Session Endpoint） |
 | 未受信客户端 Application 证书 | CreateSession `BadCertificateUntrusted` |
 | 错误客户端 Application URI | CreateSession `BadCertificateUriInvalid` |
 | 过期客户端 Application 证书 | CreateSession `BadCertificateTimeInvalid` |
 | 客户端证书/私钥不匹配 | OpenSecureChannel 阶段失败 |
-| 未受信 User 证书 | ActivateSession `BadUserAccessDenied` |
-| 错误 User 私钥 | ActivateSession `BadIdentityTokenInvalid` |
+| 未注册 User 证书（CA 签发, 白名单外） | ActivateSession `BadUserAccessDenied` |
+| 错误 User 私钥 | ActivateSession **严格** `BadIdentityTokenInvalid` |
 | 过期 User 证书（在白名单但过期） | ActivateSession 拒绝（CreateSession 正常，证明是用户链路） |
+| Self-signed User 证书（profile 不合规） | ActivateSession `BadUserAccessDenied` |
 | Self-signed 服务器错误 pin（48621） | OpenSecureChannel / CreateSession 阶段失败 |
 
 测试区分 **SecureChannel/Application 认证失败**（CreateSession 及之前）
@@ -361,10 +372,15 @@ python tests/negative_tests.py --with-self-signed   # 加测 48621 错误 pin
 ### 并发用户认证测试
 
 ```bash
-python tests/concurrent_auth_tests.py    # 30 个并发会话（anon/username/x509）
+python tests/concurrent_auth_tests.py    # 30 个并发会话（含无效身份降级检测）
 ```
 
-验证 asyncua 2.0.1 下 `user_token_tracking` 的令牌类型记录不会在并发会话里串掉。
+并发执行 6 类身份（各 5 个）：
+`valid anon / valid username / valid x509` 必须全部成功，
+`invalid username / unregistered x509 / expired x509` 必须全部失败。
+如果 `user_token_tracking` 的令牌类型在并发下串成 `anon`，无效身份可能被
+错误当作 Anonymous 放行——本测试能抓出来。它**只验证**“并发下令牌类型隔离 +
+无效身份不会被降级放行”，不宣称验证其它能力。
 
 ### 自定义 ApplicationUri 测试
 
@@ -406,18 +422,22 @@ python tests/concurrent_auth_tests.py
    `Server(iserver=...)` 扩展点，在自定义 `InternalSession` 中记录本次
    `UserIdentityToken` 类型与底层通道是否受保护（同步窗口内无 await，
    无跨会话竞争；`tests/concurrent_auth_tests.py` 实测 30 并发不串）。
-2. **discovery-only None 端点**
-   asyncua 把「None 通道能否建立」与「是否发布 None 端点」绑定，无法原生区分
-   discovery-only 与完整 None Session。处理：发布 None 端点但通过 UserManager
-   拒绝所有无保护通道上的 Session 激活（见 §2 Discovery）。
-3. **客户端证书/私钥不匹配时的错误信息**
+2. **客户端证书/私钥不匹配时的错误信息**
    asyncua 客户端在 OpenSecureChannel 阶段会因服务端无法解密而抛出内部
    `AttributeError` 或超时，而不是一个干净的 OPC UA StatusCode。连接仍然被拒绝
    （测试通过），只是错误文案不够友好。
-4. **X.509 User validation = direct 白名单 + 有效期**
+3. **X.509 User validation = direct 白名单 + 有效期**
    当前 `X509IdentityToken` 校验是「注册用户证书的精确 DER 白名单 + 有效期检查」，
    **不是**完整用户 PKI。本轮不实现：User Certificate CA-chain trust /
    Intermediate CA / CRL / CertificateGroup / TrustList。
+   `user_unregistered_cert.pem`（CA 签发、profile 合法）用于单一变量测试
+   「未注册进白名单」；self-signed 用户证书仅作为 malformed/profile 不合规材料。
+4. **discovery-only None 的实现**
+   asyncua 把「None 通道能否建立」与「是否发布 None 端点」绑定，无法原生区分
+   discovery-only 与完整 None Session。处理：绑定 asyncua 2.0.1 的
+   `DiscoveryCleanServer` 子类保留 `SecurityPolicyNone` factory 但把 None/None
+   EndpointDescription 从 GetEndpoints 移除；Session 层再由 UserManager 拒绝
+   无保护通道激活（双保险，见 `server_builder.py` / `user_manager.py`）。
 5. **Anonymous 授权**
    asyncua 默认 `SimpleRoleRuleset` 给 `UserRole.Anonymous` 空权限。mock 通过
    `MockerRoleRuleset` 让 Anonymous 身份仍为 `UserRole.Anonymous`，但授予读取

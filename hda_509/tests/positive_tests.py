@@ -82,8 +82,7 @@ async def fetch_endpoints(url: str) -> list:
             pass
 
 
-async def assert_endpoints(url: str, *, expected_policies: dict | None = None,
-                           expect_discovery: bool = True) -> None:
+async def assert_endpoints(url: str, *, expected_policies: dict | None = None) -> None:
     """断言服务器真实发布的安全端点（策略 URI / 模式 / 用户令牌）。"""
     expected_policies = expected_policies or EXPECTED_SECURE_POLICIES_FULL
     endpoints = await fetch_endpoints(url)
@@ -116,12 +115,14 @@ async def assert_endpoints(url: str, *, expected_policies: dict | None = None,
                 report(f"Endpoint {policy}/{mode} UserIdentityTokens", "FAIL",
                        f"期望 {sorted(EXPECTED_TOKEN_TYPES)}, 实际 {sorted(tokens)}")
 
-    if expect_discovery:
-        if "None" in modes_by_policy and "None_" in modes_by_policy["None"]:
-            report("Discovery None 端点存在", "PASS")
-        else:
-            ok = False
-            report("Discovery None 端点存在", "FAIL", "未发布 None/None discovery 端点")
+    # unsecured discovery 仍然可用（SecurityPolicyNone factory 保留），
+    # 但 GetEndpoints 不应暴露 None/None Session Endpoint。
+    if "None" in modes_by_policy:
+        ok = False
+        report("GetEndpoints 不暴露 None/None Session Endpoint", "FAIL",
+               f"仍返回 None/None 端点: {sorted(modes_by_policy['None'])}")
+    else:
+        report("GetEndpoints 不暴露 None/None Session Endpoint", "PASS")
 
     if ok:
         report(f"Endpoint 发现断言 ({url})", "PASS", f"{len(endpoints)} 个端点")
@@ -214,8 +215,7 @@ async def run_normal() -> None:
 async def run_self_signed() -> None:
     print()
     print("Self-signed Server (48621)：\n")
-    await assert_endpoints(SELF_SIGNED_URL, expected_policies=EXPECTED_SECURE_POLICIES_SELF_SIGNED,
-                           expect_discovery=True)
+    await assert_endpoints(SELF_SIGNED_URL, expected_policies=EXPECTED_SECURE_POLICIES_SELF_SIGNED)
     outcome, detail = await one_connection(
         url=SELF_SIGNED_URL, auth="anon", policy="Basic256Sha256", mode="SignAndEncrypt",
         server_cert=CERTS / "server_self_signed_cert.pem",

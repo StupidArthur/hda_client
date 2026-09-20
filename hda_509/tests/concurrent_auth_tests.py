@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Concurrent user-authentication test.
+Concurrent user-authentication test (with degradation detection).
 
 Verifies that the UserIdentityToken-kind tracking used by the combined user
 manager (iserver._last_user_token_kind) does NOT mix up token types across
@@ -10,10 +10,21 @@ from InternalSession.activate_session() (no await between recording the token
 kind and calling get_user), so within a single event-loop the marker is safe;
 this test proves it under real concurrency.
 
-Launches 30 concurrent sessions (10 Anonymous, 10 UserName, 10 X.509 User),
-each of which must activate with the CORRECT identity and read a node.
+What is actually verified:
+  valid anonymous          -> must succeed + read node
+  valid username          -> must succeed + read node
+  valid x509              -> must succeed + read node
+  invalid username        -> must FAIL (BadUserAccessDenied)
+  unregistered x509       -> must FAIL (BadUserAccessDenied)
+  expired x509            -> must FAIL (BadUserAccessDenied)
 
-Run with the normal server (48620) started:
+The invalid identities must FAIL. If the global _last_user_token_kind were
+mixed up to "anon", a Username/X509 token could be wrongly accepted as
+Anonymous and succeed — this test would then fail. (We do NOT claim to prove
+more than this: token-kind isolation across concurrent sessions.)
+
+30 concurrent sessions (5 per identity class). Run with the normal server
+(48620) started:
 
     python tests/concurrent_auth_tests.py
 """
@@ -39,6 +50,18 @@ SERVER_CERT = CERTS / "server_cert.pem"
 APP_CERT = CERTS / "client_app_a_cert.pem"
 APP_KEY = CERTS / "client_app_a_key.pem"
 
+# (label, auth, username, password, user_cert, user_key, expect_success)
+CASES = [
+    ("valid-anon",      "anon",     None,   None,   None, None, True),
+    ("valid-username",  "username", "test", "test", None, None, True),
+    ("valid-x509",      "x509",     None,   None,   DEFAULT_USER_CERT, DEFAULT_USER_KEY, True),
+    ("invalid-username","username", "test", "WRONG", None, None, False),
+    ("unregistered-x509", "x509",   None,   None,   CERTS / "user_unregistered_cert.pem",
+     CERTS / "user_unregistered_key.pem", False),
+    ("expired-x509",    "x509",     None,   None,   CERTS / "user_expired_cert.pem",
+     CERTS / "user_expired_key.pem", False),
+]
+
 RESULTS: list[tuple[str, str, str]] = []
 
 
@@ -47,8 +70,9 @@ def report(case: str, outcome: str, detail: str = "") -> None:
     RESULTS.append((case, outcome, detail))
 
 
-async def one_session(index: int, auth: str) -> tuple[int, str, str]:
-    """一次完整会话。返回 (index, outcome, detail)。"""
+async def one_session(index: int, label: str, auth: str, username, password,
+                      user_cert, user_key, expect_success: bool) -> tuple[int, str, str, bool]:
+    """一次会话尝试。返回 (index, label, detail, success)。"""
     try:
         client = await setup_client(
             NORMAL_URL,
@@ -61,7 +85,10 @@ async def one_session(index: int, auth: str) -> tuple[int, str, str]:
         )
         await stage_connect(
             client, auth=auth,
-            user_cert=DEFAULT_USER_CERT, user_key=DEFAULT_USER_KEY,
+            username=username or "test",
+            password=password or "test",
+            user_cert=user_cert if user_cert else Path(""),
+            user_key=user_key if user_key else Path(""),
             policy_name="Basic256Sha256", mode_name="SignAndEncrypt", print_steps=False,
         )
         val = await read_node(client, "ns=1;s=int32_ch_1")
@@ -69,38 +96,46 @@ async def one_session(index: int, auth: str) -> tuple[int, str, str]:
             await client.disconnect()
         except Exception:  # noqa: BLE001
             pass
-        return index, "PASS", f"{auth} read={val!r}"
+        return index, label, f"connected read={val!r}", True
     except Exception as e:  # noqa: BLE001
-        return index, "FAIL", f"{auth}: {type(e).__name__}: {e}"
+        return index, label, f"{type(e).__name__}: {e}", False
 
 
 async def main() -> int:
-    # 30 个并发会话：10 anon + 10 username + 10 x509
-    plan: list[tuple[int, str]] = []
-    i = 0
-    for auth in ("anon", "username", "x509"):
-        for _ in range(10):
-            plan.append((i, auth))
-            i += 1
+    plan = []
+    idx = 0
+    for label, auth, user, pwd, ucert, ukey, expect in CASES:
+        for _ in range(5):
+            plan.append((idx, label, auth, user, pwd, ucert, ukey, expect))
+            idx += 1
 
-    print(f"并发用户认证测试：{len(plan)} 个并发会话 (10 Anonymous / 10 UserName / 10 X.509 User)\n")
-    tasks = [one_session(idx, auth) for idx, auth in plan]
+    print("并发用户认证测试（含无效身份降级检测）：30 个并发会话\n")
+    print("  valid: anon / username / x509       -> 必须成功")
+    print("  invalid: wrong-password / unregistered-x509 / expired-x509 -> 必须失败\n")
+
+    tasks = [one_session(i, label, auth, user, pwd, ucert, ukey, expect)
+             for i, label, auth, user, pwd, ucert, ukey, expect in plan]
     results = await asyncio.gather(*tasks)
 
-    for idx, outcome, detail in sorted(results):
-        print(f"  [{outcome}] session#{idx:02d} {detail}")
+    failures = []
+    for (i, label, auth, user, pwd, ucert, ukey, expect), (_, rlabel, detail, success) in zip(plan, results):
+        ok = (success == expect)
+        status = "PASS" if ok else "FAIL"
+        print(f"  [{status}] session#{i:02d} {rlabel} -> {detail} "
+              f"(期望 {'成功' if expect else '失败'})")
+        if not ok:
+            failures.append((i, rlabel, detail))
 
-    failed = [d for _, o, d in results if o.startswith("FAIL")]
-    for idx, outcome, detail in results:
-        if outcome.startswith("FAIL"):
-            report(f"session#{idx}", "FAIL", detail)
-    if failed:
-        print(f"\n{len(failed)}/{len(results)} 个并发会话失败 -> token 类型可能串了。")
+    for i, label, detail in failures:
+        report(f"session#{i} {label}", "FAIL", detail)
+
+    if failures:
+        print(f"\n{len(failures)}/30 个会话结果与预期不符 -> 可能发生身份降级/token 串号。")
         return 1
 
-    report(f"并发 {len(results)} 个会话 (anon/username/x509)", "PASS",
-           "全部以正确身份激活并读节点，token 类型未串")
-    print(f"\n全部 {len(results)} 个并发会话通过。")
+    report("并发 30 会话 (valid+invalid 身份)", "PASS",
+           "valid 全部成功, invalid 全部失败, 无身份降级")
+    print(f"\n全部 {len(results)} 个并发会话行为正确。")
     return 0
 
 

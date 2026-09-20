@@ -60,10 +60,11 @@ The standard flow works against this mocker:
 python client/discovery_probe.py   # unsecured GetEndpoints -> list everything
 ```
 
-The mocker publishes a discovery-only `None/None` endpoint (`security.discovery:
-true`). Unsecured `GetEndpoints / FindServers` are allowed, but **any Session
-over an unsecured channel is rejected** — Sessions must use a secure endpoint
-(`security.require_secured_session: true`).
+The mocker keeps the `SecurityPolicyNone` channel factory so unsecured
+`GetEndpoints / FindServers` work, but GetEndpoints returns only the 6 secure
+endpoints — **no None/None Session Endpoint is advertised**, and any Session
+over an unsecured channel is rejected (`security.require_secured_session:
+true`). Sessions must use a secure endpoint.
 
 ## Ready-made reference clients
 

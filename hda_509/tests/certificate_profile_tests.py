@@ -225,6 +225,13 @@ def main() -> int:
                              expected_uri=USER_CERT_URI, eku_oid=ExtendedKeyUsageOID.CLIENT_AUTH,
                              ca_issued_by=ca)
 
+    # 未注册用户证书：Test CA 签发、profile 合法、当前有效（测试只差"不在白名单"）
+    user_unreg = load("user_unregistered_cert.pem")
+    check_common_app_profile("user_unregistered_cert", user_unreg, expected_uri=USER_CERT_URI,
+                             eku_oid=ExtendedKeyUsageOID.CLIENT_AUTH, ca_issued_by=ca)
+    check_validity("user_unregistered_cert", user_unreg, expired=False)
+    check("user_unregistered_cert: CA 签发（非自签名）", user_unreg.issuer != user_unreg.subject)
+
     user_untrusted = load("user_untrusted_cert.pem")
     check("user_untrusted_cert: 自签名", user_untrusted.issuer == user_untrusted.subject)
 

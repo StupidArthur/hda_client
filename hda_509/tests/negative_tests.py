@@ -149,10 +149,15 @@ async def case_no_security() -> None:
     except Exception as e:  # noqa: BLE001
         if is_network_error(e):
             report("NoSecurity", "FAIL", f"服务器离线: {type(e).__name__}: {e}")
-        elif "BadUserAccessDenied" in f"{type(e).__name__}: {e}" or "BadSecurityPolicyRejected" in f"{type(e).__name__}: {e}":
-            report("NoSecurity", "PASS", f"unsecured Session 被拒绝: {type(e).__name__}")
         else:
-            report("NoSecurity", "FAIL", f"拒绝方式不符合预期: {type(e).__name__}: {e}")
+            msg = f"{type(e).__name__}: {e}"
+            # 服务器在线但拒绝 None Session 的合法拒绝方式：
+            #  - "No matching endpoints"（不暴露 None Session Endpoint，客户端无法继续）
+            #  - BadSecurityPolicyRejected / BadUserAccessDenied
+            if any(k in msg for k in ("No matching endpoints", "BadSecurityPolicyRejected", "BadUserAccessDenied")):
+                report("NoSecurity", "PASS", f"unsecured Session 被拒绝: {msg}")
+            else:
+                report("NoSecurity", "FAIL", f"拒绝方式不符合预期: {msg}")
 
 
 async def case_untrusted_app_cert() -> None:
@@ -229,23 +234,48 @@ async def case_cert_key_mismatch() -> None:
         report("Client 证书/私钥不匹配", "FAIL", f"阶段/错误不符: stage={a.stage or '-'} err={a.error}")
 
 
-async def case_untrusted_user_cert() -> None:
+async def case_unregistered_user_cert() -> None:
+    # user_unregistered_cert.pem：Test CA 签发、profile 合法、当前有效，
+    # 但【不在】server direct whitelist —— 单一变量：只差"未注册"。
+    a = await attempt_secured(
+        url=NORMAL_URL, server_cert=SERVER_CERT, auth="x509",
+        user_cert=CERTS / "user_unregistered_cert.pem",
+        user_key=CERTS / "user_unregistered_key.pem",
+    )
+    if a.ok:
+        report("未注册 User Certificate（CA 签发, 白名单外）", "FAIL", "连接成功(不应发生)")
+    elif a.network_error:
+        report("未注册 User Certificate（CA 签发, 白名单外）", "FAIL", f"服务器离线: {a.error}")
+    elif a.stage == "ActivateSession" and "BadUserAccessDenied" in a.error:
+        report("未注册 User Certificate（CA 签发, 白名单外）", "PASS",
+               f"CreateSession 正常(应用证书 OK), ActivateSession 白名单拒绝: {a.error}")
+    else:
+        report("未注册 User Certificate（CA 签发, 白名单外）", "FAIL",
+               f"阶段/错误不符: stage={a.stage or '-'} err={a.error}")
+
+
+async def case_malformed_self_signed_user_cert() -> None:
+    # 保留 self-signed user cert 作为 malformed / non-profile 材料
+    #（证书本身不是 Test CA 签发），不是 unregistered 的主要测试。
     a = await attempt_secured(
         url=NORMAL_URL, server_cert=SERVER_CERT, auth="x509",
         user_cert=CERTS / "user_untrusted_cert.pem",
         user_key=CERTS / "user_untrusted_key.pem",
     )
     if a.ok:
-        report("未受信 User Certificate (用户认证)", "FAIL", "连接成功(不应发生)")
+        report("Self-signed User Certificate（profile 不合规）", "FAIL", "连接成功(不应发生)")
     elif a.network_error:
-        report("未受信 User Certificate (用户认证)", "FAIL", f"服务器离线: {a.error}")
+        report("Self-signed User Certificate（profile 不合规）", "FAIL", f"服务器离线: {a.error}")
     elif a.stage == "ActivateSession" and "BadUserAccessDenied" in a.error:
-        report("未受信 User Certificate (用户认证)", "PASS", f"ActivateSession -> {a.error}")
+        report("Self-signed User Certificate（profile 不合规）", "PASS", f"ActivateSession -> {a.error}")
     else:
-        report("未受信 User Certificate (用户认证)", "FAIL", f"阶段/错误不符: stage={a.stage or '-'} err={a.error}")
+        report("Self-signed User Certificate（profile 不合规）", "FAIL",
+               f"阶段/错误不符: stage={a.stage or '-'} err={a.error}")
 
 
 async def case_wrong_user_key() -> None:
+    # 错误 user private key 应在 X509IdentityToken 的 userTokenSignature 验证
+    # 阶段失败 -> BadIdentityTokenInvalid（严格，不接受 BadUserAccessDenied）。
     a = await attempt_secured(
         url=NORMAL_URL, server_cert=SERVER_CERT, auth="x509",
         user_cert=CERTS / "user_cert.pem",
@@ -255,10 +285,12 @@ async def case_wrong_user_key() -> None:
         report("错误 User 私钥 (用户认证)", "FAIL", "连接成功(不应发生)")
     elif a.network_error:
         report("错误 User 私钥 (用户认证)", "FAIL", f"服务器离线: {a.error}")
-    elif a.stage == "ActivateSession" and ("BadIdentityTokenInvalid" in a.error or "BadUserAccessDenied" in a.error):
+    elif a.stage == "ActivateSession" and "BadIdentityTokenInvalid" in a.error:
         report("错误 User 私钥 (用户认证)", "PASS", f"ActivateSession -> {a.error}")
     else:
-        report("错误 User 私钥 (用户认证)", "FAIL", f"阶段/错误不符: stage={a.stage or '-'} err={a.error}")
+        report("错误 User 私钥 (用户认证)", "FAIL",
+               f"阶段/错误不符(必须 ActivateSession + BadIdentityTokenInvalid): "
+               f"stage={a.stage or '-'} err={a.error}")
 
 
 async def case_expired_user_cert() -> None:
@@ -310,9 +342,10 @@ async def main() -> int:
     await case_wrong_app_uri()
     await case_expired_app_cert()
     await case_cert_key_mismatch()
-    await case_untrusted_user_cert()
+    await case_unregistered_user_cert()
     await case_wrong_user_key()
     await case_expired_user_cert()
+    await case_malformed_self_signed_user_cert()
     if args.with_self_signed:
         print()
         print("Self-signed 场景 (48621)：\n")

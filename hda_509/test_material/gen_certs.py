@@ -410,7 +410,7 @@ def main() -> None:
     print(f"  [User Expired]      {BASE / 'user_expired_cert.pem'}")
 
     # ---- Untrusted (self-signed) User Certificate --------------------------
-    # Not in the server user-manager whitelist -> user authentication fails.
+    # 保留为 malformed / non-profile 测试材料（证书本身不是由 Test CA 签发）。
     user_untrusted_key = gen_key()
     user_untrusted_cert = build_self_signed_cert(
         "ua_hda Untrusted User",
@@ -421,6 +421,22 @@ def main() -> None:
     dump_key(BASE / "user_untrusted_key.pem", user_untrusted_key)
     dump_cert(BASE / "user_untrusted_cert.pem", user_untrusted_cert)
     print(f"  [User Untrusted]    {BASE / 'user_untrusted_cert.pem'}")
+
+    # ---- Unregistered User X.509 Certificate -------------------------------
+    # 由 Test CA 正常签发、profile 与 user_cert.pem 完全一致、当前有效，
+    # 但【不加入】server 的 direct whitelist -> ActivateSession 应被拒绝
+    # （BadUserAccessDenied）。用于"unregistered direct user"的单一变量负向测试。
+    user_unreg_key = gen_key()
+    user_unreg_cert = build_cert(
+        subject("ua_hda Test User (unregistered)"),
+        user_unreg_key.public_key(),
+        ca_name, ca_key,
+        san=[x509.UniformResourceIdentifier(USER_CERT_URI)],
+        eku=[ExtendedKeyUsageOID.CLIENT_AUTH],
+    )
+    dump_key(BASE / "user_unregistered_key.pem", user_unreg_key)
+    dump_cert(BASE / "user_unregistered_cert.pem", user_unreg_cert)
+    print(f"  [User Unregistered] {BASE / 'user_unregistered_cert.pem'}")
 
     # ---- Wrong private key for the user certificate ------------------------
     # Does not match user_cert.pem -> user token signature verification fails.

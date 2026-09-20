@@ -51,6 +51,7 @@ from asyncua.crypto.permission_rules import (
     PermissionRuleset,
     UserRole,
 )
+from asyncua.crypto.security_policies import SecurityPolicyNone
 from asyncua.crypto.truststore import TrustStore
 from asyncua.crypto.validator import CertificateValidator, CertificateValidatorOptions
 
@@ -58,6 +59,50 @@ from user_manager import CombinedUserManager
 from user_token_tracking import UserTokenAwareInternalServer
 
 logger = logging.getLogger(__name__)
+
+# 明确绑定 asyncua 2.0.1（DiscoveryCleanServer 依赖其 _setup_server_nodes 行为）。
+from asyncua import __version__ as _ASYNCUA_VERSION  # noqa: E402
+
+if not _ASYNCUA_VERSION.startswith("2.0."):
+    raise RuntimeError(
+        f"hda_509 绑定 asyncua 2.0.x（当前 {_ASYNCUA_VERSION}）。"
+        f"升级 asyncua 前请先核对 DiscoveryCleanServer._setup_server_nodes 的实现。"
+    )
+
+
+class DiscoveryCleanServer(Server):
+    """
+    asyncua 2.0.1 专用 Server 子类：Discovery 干净化。
+
+    背景：asyncua 2.0.1 的 Server._setup_server_nodes() 对每个安全策略同时
+    （1）发布 EndpointDescription 到 iserver.endpoints，和
+    （2）把 SecurityPolicyFactory 加入 self._policies（BinaryServer 用它建立
+    SecureChannel）。因此一旦把 NoSecurity 放进 _security_policy，None/None 就会
+    同时出现在 GetEndpoints 返回值里，尽管我们会在 ActivateSession 阶段拒绝
+    None Session——EndpointDescription 语义不够干净。
+
+    本子类在复用原有 _setup_server_nodes() 之后：
+      保留 self._policies 中的 SecurityPolicyNone factory（unsecured
+      Discovery 通道仍可建立），
+      但从 iserver.endpoints 移除 SecurityMode == None 的 EndpointDescription，
+      使 GetEndpoints 只返回真正支持 Session 的 secure endpoints。
+
+    不修改 asyncua site-packages 源码。
+    """
+
+    async def _setup_server_nodes(self) -> None:
+        await super()._setup_server_nodes()
+        # 只移除 None/None 的 EndpointDescription，不动 _policies。
+        self.iserver.endpoints[:] = [
+            e for e in self.iserver.endpoints
+            if not (e.SecurityPolicyUri == SecurityPolicyNone.URI
+                    and e.SecurityMode == ua.MessageSecurityMode.None_)
+        ]
+        if self.iserver.endpoints:
+            logger.info("Discovery 端点已清理: GetEndpoints 只返回 %d 个 secure endpoints",
+                        len(self.iserver.endpoints))
+        else:
+            logger.warning("Discovery 端点清理后无任何端点（可能只配置了 NoSecurity）")
 
 
 class MockerRoleRuleset(PermissionRuleset):
@@ -189,7 +234,7 @@ async def build_server(cfg: dict[str, Any]) -> Server:
     :param cfg: load_config() 返回的组态字典
     :return: asyncua.Server
     """
-    server = Server(iserver=UserTokenAwareInternalServer())
+    server = DiscoveryCleanServer(iserver=UserTokenAwareInternalServer())
 
     # ---- 应用描述 ---------------------------------------------------------
     application = cfg.get("application")
