@@ -25,6 +25,7 @@ from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 BASE = Path(__file__).resolve().parents[1] / "test_material" / "certs"
+SS_DIR = Path(__file__).resolve().parents[1] / "test_material" / "self_signed"
 
 SERVER_APP_URI = "urn:freeopcua:python:server"
 CUSTOM_SERVER_APP_URI = "urn:ua-hda:test:custom-server"
@@ -234,6 +235,41 @@ def main() -> int:
 
     user_untrusted = load("user_untrusted_cert.pem")
     check("user_untrusted_cert: 自签名", user_untrusted.issuer == user_untrusted.subject)
+
+    # ---- Self-signed PKI (test_material/self_signed/) ------------------------
+    print()
+    print("Self-signed PKI (config_self_signed.yaml)：\n")
+    ss_server = x509.load_pem_x509_certificate((SS_DIR / "server" / "server_self_signed_cert.pem").read_bytes())
+    check("ss_server: 自签名(issuer==subject)", ss_server.issuer == ss_server.subject)
+    check("ss_server: EKU serverAuth", ExtendedKeyUsageOID.SERVER_AUTH in eku(ss_server))
+    check("ss_server: ca=False 且 keyCertSign=True",
+          ss_server.extensions.get_extension_for_class(x509.BasicConstraints).value.ca is False
+          and key_usage(ss_server).key_cert_sign is True)
+    check("ss_server: SAN URI==ServerAppUri", SERVER_APP_URI in san_uris(ss_server))
+    check("ss_server: SAN DNS localhost", "localhost" in san_dns(ss_server))
+    check("ss_server: SAN IP 127.0.0.1", "127.0.0.1" in san_ips(ss_server))
+    check("ss_server: SKI+AKI", has_extension(ss_server, x509.SubjectKeyIdentifier)
+          and has_extension(ss_server, x509.AuthorityKeyIdentifier))
+    check_validity("ss_server", ss_server, expired=False)
+
+    ss_client = x509.load_pem_x509_certificate((SS_DIR / "client" / "client_self_signed_cert.pem").read_bytes())
+    check("ss_client: 自签名(issuer==subject)", ss_client.issuer == ss_client.subject)
+    check("ss_client: EKU clientAuth", ExtendedKeyUsageOID.CLIENT_AUTH in eku(ss_client))
+    check("ss_client: ca=False 且 keyCertSign=True",
+          ss_client.extensions.get_extension_for_class(x509.BasicConstraints).value.ca is False
+          and key_usage(ss_client).key_cert_sign is True)
+    check("ss_client: SAN URI", "urn:example.org:FreeOpcUa:selfsigned-client" in san_uris(ss_client))
+    check("ss_client: SKI+AKI", has_extension(ss_client, x509.SubjectKeyIdentifier)
+          and has_extension(ss_client, x509.AuthorityKeyIdentifier))
+    check_validity("ss_client", ss_client, expired=False)
+
+    ss_expired = x509.load_pem_x509_certificate((SS_DIR / "client" / "client_self_signed_expired_cert.pem").read_bytes())
+    check_validity("ss_client_expired", ss_expired, expired=True)
+    ss_wrong = x509.load_pem_x509_certificate((SS_DIR / "client" / "client_self_signed_wrong_uri_cert.pem").read_bytes())
+    check("ss_client_wrong_uri: SAN URI 不是正确值",
+          "urn:example.org:FreeOpcUa:selfsigned-wrong-uri" in san_uris(ss_wrong)
+          and "urn:example.org:FreeOpcUa:selfsigned-client" not in san_uris(ss_wrong),
+          str(san_uris(ss_wrong)))
 
     print("\n汇总：")
     failed = [n for n, o, _ in RESULTS if o.startswith("FAIL")]

@@ -102,6 +102,12 @@ Normal Server（48620）默认发布以上全部 **6 个**加密 Endpoint（GetE
   一致，`clientAuth` EKU，正确 KeyUsage
 * 服务端信任存储：`test_material/certs/trust/`（只放 Test CA）
 
+另外提供一套**完全 self-signed 的测试 PKI**（`test_material/self_signed/`），
+用于 `config_self_signed.yaml`（48626）：服务端证书 self-signed，**信任存储
+直接信任一个 self-signed 客户端 Application 证书**（不需要 Test CA）——
+用于「自定义 self-signed 证书建立 OPC UA SecureChannel」的兼容性测试
+（见 §6.2 / §7 / §10）。
+
 证书都带 **SKI / AKI / OrganizationName**，Root CA 为
 `BasicConstraints(ca=True)` + CA KeyUsage；自签名 Server 证书是
 `BasicConstraints(ca=False)` 但 `KeyUsage.keyCertSign=True`（见 §6 与
@@ -116,6 +122,7 @@ Normal Server（48620）默认发布以上全部 **6 个**加密 Endpoint（GetE
 | 48620 | normal | `config_x509.yaml` | CA 签发证书，GetEndpoints 返回全部 6 个加密端点 |
 | 48621 | self-signed | `config_scenarios/self_signed_48621.yaml` | 服务端用自签名证书（client 必须 pin 该证书） |
 | 48625 | custom-uri | `config_scenarios/custom_uri_48625.yaml` | 非默认 ApplicationUri（`urn:ua-hda:test:custom-server`） |
+| 48626 | self-signed PKI | `config_self_signed.yaml` | **完全自签名 PKI**：服务端直接信任 self-signed 客户端 Application 证书（无 CA），Basic256Sha256 + SignAndEncrypt |
 
 场景差异全部由 YAML 配置表达（端口、证书路径、策略列表），代码共用
 `server_builder.py` 一个构建入口，方便以后增加更多场景（例如
@@ -137,6 +144,7 @@ hda_509/
   user_token_tracking.py       asyncua 限制的解决（跟踪令牌类型 + 通道是否受保护）
   config_loader.py             YAML 组态加载与路径解析
   config_x509.yaml             正常场景组态
+  config_self_signed.yaml      完全 self-signed PKI 场景组态（48626）
   config_scenarios/            self-signed 48621 / custom-uri 48625
   change_engines.py            change=true 节点的值变化引擎
   type_mapping.py              OPC UA 类型映射
@@ -153,14 +161,16 @@ hda_509/
     x509_user_client.py        Application Certificate + X.509 User
     conn.py                    共享连接/分阶段输出逻辑
   tests/
-    certificate_profile_tests.py  证书 Profile 自动校验（111 项）
+    certificate_profile_tests.py  证书 Profile 自动校验（139 项）
     positive_tests.py             正向测试 + endpoint 断言
     negative_tests.py             负向测试（严格 PASS/FAIL，离线判定）
     concurrent_auth_tests.py      并发用户认证测试（30 会话）
     custom_application_uri_tests.py 自定义 ApplicationUri 测试
+    self_signed_client_tests.py   self-signed 客户端信任测试（48626）
   test_material/
     gen_certs.py               测试 PKI 生成（CA/服务端/客户端/用户证书）
-    certs/                     生成的测试证书（test-only）
+    certs/                     CA-signed 测试证书（test-only）
+    self_signed/               self-signed 测试 PKI（server/client/trust）
 ```
 
 ---
@@ -240,6 +250,29 @@ SAN URI、正确 EKU、正确 KeyUsage、**SKI + AKI**。
 
 > **这些证书只用于测试，不能作为生产 PKI。**
 
+### 6.2 生成 self-signed 测试 PKI（48626 场景）
+
+```bash
+python test_material/self_signed/gen_self_signed_certs.py
+```
+
+生成 `test_material/self_signed/`：
+
+```text
+self_signed/
+  server/server_self_signed_cert.pem + _key.pem   自签名 Server Application 证书
+  client/client_self_signed_cert.pem + _key.pem   受信任的 self-signed 客户端证书
+  client/client_self_signed_untrusted_cert.pem…   未受信任（不在 trust）
+  client/client_self_signed_expired_cert.pem…     已过期
+  client/client_self_signed_wrong_uri_cert.pem…   SAN URI 错误
+  client/client_self_signed_mismatch_key.pem      与证书不匹配的私钥
+  trust/client_self_signed_cert.pem               服务端信任存储：直接信任该 self-signed 客户端证书
+```
+
+全部为 self-signed（`BasicConstraints ca=False`，但 `KeyUsage.keyCertSign=True`
+以便证书自证为信任锚），带 SKI/AKI/OrganizationName。生成脚本纯 Python，
+不依赖 Test Root CA、不依赖 OpenSSL CLI，macOS/Windows 一致。
+
 ---
 
 ## 7. 启动 Server
@@ -248,6 +281,7 @@ SAN URI、正确 EKU、正确 KeyUsage、**SKI + AKI**。
 python main.py config_x509.yaml                        # Normal 48620
 python main.py config_scenarios/self_signed_48621.yaml # Self-signed 48621
 python main.py config_scenarios/custom_uri_48625.yaml  # Custom URI 48625
+python main.py config_self_signed.yaml                 # Self-signed PKI 48626
 ```
 
 可以同时跑多个场景（不同端口互不冲突）。
@@ -325,7 +359,7 @@ python client/reference_client.py --auth x509 --policy Aes256Sha256RsaPss --mode
 
 ```bash
 python test_material/gen_certs.py
-python tests/certificate_profile_tests.py     # 111 项：SAN/EKU/KeyUsage/SKI/AKI/签名/有效期...
+python tests/certificate_profile_tests.py     # 139 项：SAN/EKU/KeyUsage/SKI/AKI/签名/有效期...
 ```
 
 ### 正向测试
@@ -392,6 +426,35 @@ python tests/custom_application_uri_tests.py
 验证非默认 ApplicationUri（`urn:ua-hda:test:custom-server`）确实生效于：
 EndpointDescription.Server.ApplicationUri、ServerArray、NamespaceArray[1]、
 Server 证书 SAN URI。
+
+### Self-signed Client Trust 测试（48626）
+
+```bash
+python main.py config_self_signed.yaml
+python tests/self_signed_client_tests.py
+```
+
+服务端直接信任一个 self-signed 客户端 Application 证书（无 Test CA）。
+覆盖：
+
+| 用例 | 期望结果 |
+|------|----------|
+| 受信任 self-signed 客户端证书 | 成功：OpenSecureChannel → CreateSession → ActivateSession(Anonymous) → Read |
+| 未受信任 self-signed 客户端证书 | CreateSession `BadCertificateUntrusted` |
+| 过期 self-signed 客户端证书 | CreateSession `BadCertificateTimeInvalid` |
+| ApplicationUri 不匹配 | CreateSession `BadCertificateUriInvalid` |
+| 证书/私钥不匹配 | OpenSecureChannel 阶段失败 |
+
+手工验证：
+
+```bash
+python client/discovery_probe.py --url opc.tcp://127.0.0.1:48626/ua_mocker/
+python client/reference_client.py --url opc.tcp://127.0.0.1:48626/ua_mocker/ \
+    --app-cert test_material/self_signed/client/client_self_signed_cert.pem \
+    --app-key test_material/self_signed/client/client_self_signed_key.pem \
+    --server-cert test_material/self_signed/server/server_self_signed_cert.pem \
+    --app-uri urn:example.org:FreeOpcUa:selfsigned-client
+```
 
 ---
 

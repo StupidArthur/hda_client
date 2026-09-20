@@ -1,0 +1,78 @@
+# OPC UA X.509 Compatibility Mocker - Self-signed Client Trust scenario
+#
+#   opc.tcp://0.0.0.0:48626/ua_mocker/
+#
+# Fully self-signed PKI (no Test Root CA involved):
+#   * Server Application Certificate: self-signed (server_self_signed_cert.pem)
+#   * Server Trust Store: DIRECTLY trusts a self-signed CLIENT Application
+#     Certificate (test_material/self_signed/trust/client_self_signed_cert.pem)
+#
+#     Client self-signed certificate
+#             |                     (server trust store directly trusts it)
+#             v
+#     Certificate validation -> SecureChannel established
+#
+# SecurityPolicy: Basic256Sha256 / MessageSecurityMode: SignAndEncrypt.
+# Sessions use the Anonymous UserIdentityToken (X.509 User is out of scope).
+#
+# Generate the PKI:
+#   python test_material/self_signed/gen_self_signed_certs.py
+#
+# Start:
+#   python main.py config_self_signed.yaml
+#
+# Tests:
+#   python tests/self_signed_client_tests.py
+#   python client/discovery_probe.py --url opc.tcp://127.0.0.1:48626/ua_mocker/
+#   python client/reference_client.py --url opc.tcp://127.0.0.1:48626/ua_mocker/ \
+#       --app-cert test_material/self_signed/client/client_self_signed_cert.pem \
+#       --app-key test_material/self_signed/client/client_self_signed_key.pem \
+#       --server-cert test_material/self_signed/server/server_self_signed_cert.pem \
+#       --app-uri urn:example.org:FreeOpcUa:selfsigned-client
+
+scenario: self_signed_pki
+
+server: "0.0.0.0"
+port: 48626
+endpoint_path: "/ua_mocker/"
+cycle: 1000
+namespace_index: 1
+
+application:
+  name: "ua_hda X.509 Mocker (self-signed PKI)"
+  uri: "urn:freeopcua:python:server"
+
+security:
+  policies:
+    - Basic256Sha256_Sign
+    - Basic256Sha256_SignAndEncrypt
+  discovery: true
+  require_secured_session: true
+  application_certificate:
+    cert: "test_material/self_signed/server/server_self_signed_cert.pem"
+    private_key: "test_material/self_signed/server/server_self_signed_key.pem"
+  # 信任存储直接放受信任的 self-signed 客户端 Application 证书（单一副本）。
+  trust_store: "test_material/self_signed/trust"
+
+user_auth:
+  anonymous: true
+  username: false
+  x509: false
+
+nodes:
+  - name: "int32_ch_"
+    type: Int32
+    count: 2
+    change: true
+    writable: false
+  - name: "double_wr_"
+    type: Double
+    count: 2
+    default: 0.0
+    change: false
+    writable: true
+  - name: "string_ch_"
+    type: String
+    count: 2
+    change: true
+    writable: false
