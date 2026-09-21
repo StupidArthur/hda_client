@@ -15,7 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
-const version = "v1.2.2"
+const version = "v1.2.2-ningbo-916"
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -35,7 +35,7 @@ func main() {
 	}
 	app := NewApp()
 	if err := wails.Run(&options.App{
-		Title:            "HDA Mocker 4",
+		Title:            "HDA Mocker 4 Ningbo",
 		Width:            1180,
 		Height:           780,
 		MinWidth:         920,
@@ -69,7 +69,7 @@ func runCLI(configPath string) {
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	log.Printf("HDA Mocker 4 %s running; press Ctrl+C to stop", version)
+	log.Printf("HDA Mocker 4 Ningbo %s running; press Ctrl+C to stop", version)
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
 	<-ch
