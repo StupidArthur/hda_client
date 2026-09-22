@@ -31,9 +31,9 @@ from _auth_common import attempt, report, server_online, summarize  # noqa: E402
 
 # (场景名, URL, 允许的方式)
 SCENARIOS = [
-    ("anon_only", "opc.tcp://127.0.0.1:48631/ua_auth/", {"anon"}),
-    ("username_only", "opc.tcp://127.0.0.1:48632/ua_auth/", {"username"}),
-    ("x509_only", "opc.tcp://127.0.0.1:48633/ua_auth/", {"x509"}),
+    ("anon_only", "opc.tcp://10.30.70.77:48631/ua_auth/", {"anon"}),
+    ("username_only", "opc.tcp://10.30.70.77:48632/ua_auth/", {"username"}),
+    ("x509_only", "opc.tcp://10.30.70.77:48633/ua_auth/", {"x509"}),
 ]
 
 ALL_AUTHS = ["anon", "username", "x509"]

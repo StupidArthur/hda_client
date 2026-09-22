@@ -84,6 +84,18 @@ def validate(matrix: dict[str, Any]) -> list[dict[str, Any]]:
     base_port = matrix.get("base_port")
     if not isinstance(base_port, int) or not (1 <= base_port <= 65535):
         errors.append(f"base_port 必须是 1..65535 的整数，得到: {base_port!r}")
+    # 客户端 url 主机：远程验证不能用回环地址（对方机器上 127.0.0.1 是它自己）
+    client_host = str(matrix.get("client_host", "127.0.0.1")).strip()
+    if not client_host:
+        errors.append("client_host 不能为空")
+    elif client_host in ("127.0.0.1", "localhost", "::1"):
+        # 允许，但明确警告：远程机器连不上
+        import warnings
+        warnings.warn(
+            f"client_host={client_host!r} 是回环地址，远程机器无法用该 url 连接；"
+            f"若需远程验证请改成真实 IP（服务端绑定不受影响）",
+            stacklevel=2,
+        )
     step = matrix.get("port_step", 1)
     if not isinstance(step, int) or step < 1:
         errors.append(f"port_step 必须是 >=1 的整数，得到: {step!r}")
@@ -293,6 +305,8 @@ def generate(matrix_path: Path, out_dir: Path) -> dict[str, Any]:
 
     endpoints = validate(matrix)
     auths = matrix["auths"]
+    # validate() 已校验过 client_host；这里取值供 url 拼接与 manifest 使用
+    client_host = str(matrix.get("client_host", "127.0.0.1")).strip()
     base_port = int(matrix["base_port"])
     step = int(matrix.get("port_step", 1))
     neg_count = int(matrix.get("negative_samples", 2))
@@ -353,7 +367,7 @@ def generate(matrix_path: Path, out_dir: Path) -> dict[str, Any]:
                     "server_policy": ep["server_policy"],
                     "endpoint_path": matrix.get("endpoint_path", "/ua_auth/"),
                     "url": (
-                        f"opc.tcp://127.0.0.1:{port}"
+                        f"opc.tcp://{client_host}:{port}"
                         f"{matrix.get('endpoint_path', '/ua_auth/')}"
                     ),
                     "config": f"configs/matrix/{fname}",
@@ -366,6 +380,7 @@ def generate(matrix_path: Path, out_dir: Path) -> dict[str, Any]:
     manifest = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "source": str(matrix_path.relative_to(BASE_DIR)).replace("\\", "/"),
+        "client_host": client_host,
         "base_port": base_port,
         "port_step": step,
         "endpoint_count": len(endpoints),

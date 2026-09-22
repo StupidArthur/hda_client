@@ -23,7 +23,7 @@ User Certificate are two different things and must not be mixed).
 from asyncua import Client, ua
 from asyncua.crypto.security_policies import SecurityPolicyBasic256Sha256
 
-client = Client("opc.tcp://127.0.0.1:48620/ua_mocker/")
+client = Client("opc.tcp://10.30.70.77:48749/ua_auth/")
 client.application_uri = "urn:example.org:FreeOpcUa:opcua-asyncio"  # must match the cert SAN URI
 await client.set_security(
     SecurityPolicyBasic256Sha256,

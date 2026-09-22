@@ -52,7 +52,7 @@ from asyncua.crypto.security_policies import (
 BASE_DIR = Path(__file__).resolve().parents[1]
 CERTS = BASE_DIR / "test_material" / "certs"
 
-DEFAULT_URL = "opc.tcp://127.0.0.1:48730/ua_auth/"
+DEFAULT_URL = "opc.tcp://10.30.70.77:48730/ua_auth/"
 DEFAULT_SERVER_CERT = CERTS / "server_cert.pem"
 DEFAULT_APP_CERT = CERTS / "client_app_a_cert.pem"
 DEFAULT_APP_KEY = CERTS / "client_app_a_key.pem"

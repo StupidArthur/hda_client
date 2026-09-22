@@ -30,7 +30,7 @@ MANIFEST = BASE / "configs" / "matrix" / "manifest.json"
 DEFAULT_NODE = "ns=1;s=int32_ch_1"
 
 # 兼容旧引用：默认指向矩阵首个端口（矩阵未生成时退回 48730）
-DEFAULT_URL = "opc.tcp://127.0.0.1:48730/ua_auth/"
+DEFAULT_URL = "opc.tcp://10.30.70.77:48730/ua_auth/"
 
 
 def load_manifest() -> dict:

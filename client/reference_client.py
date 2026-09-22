@@ -27,8 +27,8 @@ Examples (macOS / Windows identical):
     python client/reference_client.py --auth x509
     python client/reference_client.py --auth x509 \
         --policy Aes128Sha256RsaOaep --mode SignAndEncrypt
-    python client/reference_client.py --url opc.tcp://127.0.0.1:48621/ua_mocker/ \
-        --server-cert test_material/certs/server_self_signed_cert.pem
+    python client/reference_client.py --url opc.tcp://10.30.70.77:48730/ua_auth/ \
+        --server-cert test_material/certs/server_cert.pem
 """
 
 import asyncio

@@ -42,6 +42,12 @@ def load_manifest() -> dict:
 
 
 def _listening(port: int, timeout: float = 0.4) -> bool:
+    """本机健康检查：探自己起的进程，故意用回环地址。
+
+    与 configs/matrix.yaml 的 client_host 无关 —— 那个只决定"客户端/清单
+    url 里写什么地址"（远程验证用），服务端始终绑 0.0.0.0。本机自检走
+    127.0.0.1 可避开网卡/防火墙/路由等无关因素。
+    """
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=timeout):
             return True

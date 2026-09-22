@@ -18,8 +18,8 @@ security.discovery: true, which the normal / self-signed / custom-uri
 configs do) and lists everything.
 
     python client/discovery_probe.py
-    python client/discovery_probe.py --url opc.tcp://127.0.0.1:48621/ua_mocker/
-    python client/discovery_probe.py --url opc.tcp://127.0.0.1:48625/ua_mocker/
+    python client/discovery_probe.py --url opc.tcp://10.30.70.77:48730/ua_auth/
+    python client/discovery_probe.py --url opc.tcp://10.30.70.77:48745/ua_auth/
 
 It also verifies that an unsecured SESSION (full connect as Anonymous) is
 rejected by the server, confirming that the None endpoint is discovery-only.
