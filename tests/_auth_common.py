@@ -9,6 +9,7 @@ UA Auth Lab - shared test helpers.
 StatusCode」才算 PASS；服务器离线 / ConnectionRefused / DNS 错误一律 FAIL。
 """
 
+import json
 import socket
 import sys
 from pathlib import Path
@@ -23,11 +24,49 @@ from conn import (  # noqa: E402
     stage_connect,
 )
 
-# ---- 默认场景：all_auth（48630）-------------------------------------------
-DEFAULT_URL = "opc.tcp://127.0.0.1:48630/ua_auth/"
+# ---- 默认场景：全拆矩阵（manifest 驱动）---------------------------------
+BASE = Path(__file__).resolve().parents[1]
+MANIFEST = BASE / "configs" / "matrix" / "manifest.json"
 DEFAULT_NODE = "ns=1;s=int32_ch_1"
 
-BASE = Path(__file__).resolve().parents[1]
+# 兼容旧引用：默认指向矩阵首个端口（矩阵未生成时退回 48730）
+DEFAULT_URL = "opc.tcp://127.0.0.1:48730/ua_auth/"
+
+
+def load_manifest() -> dict:
+    """读取 configs/matrix/manifest.json（生成器产出的端口清单）。"""
+    if not MANIFEST.exists():
+        raise SystemExit(f"缺少清单: {MANIFEST}\n先运行: python tools/gen_matrix_configs.py")
+    return json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+
+def pick_port(
+    auth: str | None = None,
+    policy: str | None = None,
+    mode: str | None = None,
+    *,
+    require_encrypted: bool = False,
+) -> dict:
+    """从 manifest 挑一个满足条件的端口条目。
+
+    require_encrypted=True 时排除 None/None 端点（需要加密通道的用例用）。
+    找不到会直接 SystemExit，避免测试"悄悄用了错误端口"。
+    """
+    manifest = load_manifest()
+    for e in manifest["entries"]:
+        if auth is not None and e["auth"] != auth:
+            continue
+        if policy is not None and e["policy"] != policy:
+            continue
+        if mode is not None and e["mode"] != mode:
+            continue
+        if require_encrypted and e["policy"] == "None":
+            continue
+        return e
+    raise SystemExit(
+        "manifest 中找不到满足条件的端口: "
+        f"auth={auth} policy={policy} mode={mode} encrypted={require_encrypted}"
+    )
 CERTS = BASE / "test_material" / "certs"
 SERVER_CERT = CERTS / "server_cert.pem"
 

@@ -40,6 +40,8 @@ from asyncua import Client, ua
 from asyncua.crypto.security_policies import (
     SecurityPolicyAes128Sha256RsaOaep,
     SecurityPolicyAes256Sha256RsaPss,
+    SecurityPolicyBasic128Rsa15,
+    SecurityPolicyBasic256,
     SecurityPolicyBasic256Sha256,
     SecurityPolicyNone,
 )
@@ -50,7 +52,7 @@ from asyncua.crypto.security_policies import (
 BASE_DIR = Path(__file__).resolve().parents[1]
 CERTS = BASE_DIR / "test_material" / "certs"
 
-DEFAULT_URL = "opc.tcp://127.0.0.1:48630/ua_auth/"
+DEFAULT_URL = "opc.tcp://127.0.0.1:48730/ua_auth/"
 DEFAULT_SERVER_CERT = CERTS / "server_cert.pem"
 DEFAULT_APP_CERT = CERTS / "client_app_a_cert.pem"
 DEFAULT_APP_KEY = CERTS / "client_app_a_key.pem"
@@ -64,6 +66,10 @@ DEFAULT_PASSWORD = "test"
 # ---------------------------------------------------------------------------
 POLICY_CLASSES = {
     "None": SecurityPolicyNone,
+    # Basic128Rsa15 / Basic256 已被 OPC Foundation 在 spec 1.04 标为 deprecated，
+    # asyncua 仍可运行（日志会打印 DEPRECATED 告警）；为兼容仍列出它们的客户端，纳入。
+    "Basic128Rsa15": SecurityPolicyBasic128Rsa15,
+    "Basic256": SecurityPolicyBasic256,
     "Basic256Sha256": SecurityPolicyBasic256Sha256,
     "Aes128Sha256RsaOaep": SecurityPolicyAes128Sha256RsaOaep,
     "Aes256Sha256RsaPss": SecurityPolicyAes256Sha256RsaPss,

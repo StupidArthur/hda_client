@@ -1,0 +1,459 @@
+UA Auth Lab 全拆矩阵（方案 A）完整测试报告
+生成时间: 2026-09-22 13:50:57
+asyncua: 2.0.1  Python: 3.11.9
+矩阵: 33 端口 = 11 端点组合 x 3 认证方式, 端口 48730..48762, 每端口负向 2 条
+
+==================== matrix_port_tests ====================
+UA Auth Lab 全拆矩阵测试（方案 A）
+
+  端口数      : 33
+  端点组合    : 11 × 认证 3
+  每端口负向  : 2
+  预计连接    : 99
+==============================================================================
+
+Case 1. 正向：本端口组合必须成功
+
+  [PASS] [正向] p48731 None/None username -> read ns=1;s=int32_ch_1=84
+  [PASS] [正向] p48730 None/None anon -> read ns=1;s=int32_ch_1=85
+  [PASS] [正向] p48734 Basic128Rsa15/Sign (废弃) username -> read ns=1;s=int32_ch_1=83
+  [PASS] [正向] p48733 Basic128Rsa15/Sign (废弃) anon -> read ns=1;s=int32_ch_1=83
+  [PASS] [正向] p48735 Basic128Rsa15/Sign (废弃) x509 -> read ns=1;s=int32_ch_1=83
+  [PASS] [正向] p48732 None/None x509 -> read ns=1;s=int32_ch_1=83
+  [PASS] [正向] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username -> read ns=1;s=int32_ch_1=82
+  [PASS] [正向] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon -> read ns=1;s=int32_ch_1=83
+  [PASS] [正向] p48739 Basic256/Sign (废弃) anon -> read ns=1;s=int32_ch_1=81
+  [PASS] [正向] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 -> read ns=1;s=int32_ch_1=82
+  [PASS] [正向] p48740 Basic256/Sign (废弃) username -> read ns=1;s=int32_ch_1=81
+  [PASS] [正向] p48741 Basic256/Sign (废弃) x509 -> read ns=1;s=int32_ch_1=81
+  [PASS] [正向] p48742 Basic256/SignAndEncrypt (废弃) anon -> read ns=1;s=int32_ch_1=80
+  [PASS] [正向] p48743 Basic256/SignAndEncrypt (废弃) username -> read ns=1;s=int32_ch_1=80
+  [PASS] [正向] p48744 Basic256/SignAndEncrypt (废弃) x509 -> read ns=1;s=int32_ch_1=79
+  [PASS] [正向] p48745 Basic256Sha256/Sign anon -> read ns=1;s=int32_ch_1=79
+  [PASS] [正向] p48746 Basic256Sha256/Sign username -> read ns=1;s=int32_ch_1=79
+  [PASS] [正向] p48748 Basic256Sha256/SignAndEncrypt anon -> read ns=1;s=int32_ch_1=78
+  [PASS] [正向] p48749 Basic256Sha256/SignAndEncrypt username -> read ns=1;s=int32_ch_1=78
+  [PASS] [正向] p48747 Basic256Sha256/Sign x509 -> read ns=1;s=int32_ch_1=78
+  [PASS] [正向] p48751 Aes128Sha256RsaOaep/Sign anon -> read ns=1;s=int32_ch_1=77
+  [PASS] [正向] p48752 Aes128Sha256RsaOaep/Sign username -> read ns=1;s=int32_ch_1=77
+  [PASS] [正向] p48750 Basic256Sha256/SignAndEncrypt x509 -> read ns=1;s=int32_ch_1=77
+  [PASS] [正向] p48753 Aes128Sha256RsaOaep/Sign x509 -> read ns=1;s=int32_ch_1=76
+  [PASS] [正向] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon -> read ns=1;s=int32_ch_1=76
+  [PASS] [正向] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username -> read ns=1;s=int32_ch_1=76
+  [PASS] [正向] p48758 Aes256Sha256RsaPss/Sign username -> read ns=1;s=int32_ch_1=74
+  [PASS] [正向] p48757 Aes256Sha256RsaPss/Sign anon -> read ns=1;s=int32_ch_1=75
+  [PASS] [正向] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 -> read ns=1;s=int32_ch_1=75
+  [PASS] [正向] p48761 Aes256Sha256RsaPss/SignAndEncrypt username -> read ns=1;s=int32_ch_1=73
+  [PASS] [正向] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon -> read ns=1;s=int32_ch_1=74
+  [PASS] [正向] p48759 Aes256Sha256RsaPss/Sign x509 -> read ns=1;s=int32_ch_1=74
+  [PASS] [正向] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 -> read ns=1;s=int32_ch_1=73
+
+Case 2/3. 端点隔离 + Token 隔离：每端口只暴露自己的那一个
+
+  [PASS] [端点隔离] p48730 None/None anon -> 仅 None/None
+  [PASS] [Token隔离] p48730 None/None anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48732 None/None x509 -> 仅 None/None
+  [PASS] [Token隔离] p48732 None/None x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48731 None/None username -> 仅 None/None
+  [PASS] [Token隔离] p48731 None/None username -> 仅 UserName
+  [PASS] [端点隔离] p48733 Basic128Rsa15/Sign (废弃) anon -> 仅 Basic128Rsa15/Sign
+  [PASS] [Token隔离] p48733 Basic128Rsa15/Sign (废弃) anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48735 Basic128Rsa15/Sign (废弃) x509 -> 仅 Basic128Rsa15/Sign
+  [PASS] [Token隔离] p48735 Basic128Rsa15/Sign (废弃) x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48734 Basic128Rsa15/Sign (废弃) username -> 仅 Basic128Rsa15/Sign
+  [PASS] [Token隔离] p48734 Basic128Rsa15/Sign (废弃) username -> 仅 UserName
+  [PASS] [端点隔离] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon -> 仅 Basic128Rsa15/SignAndEncrypt
+  [PASS] [Token隔离] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username -> 仅 Basic128Rsa15/SignAndEncrypt
+  [PASS] [Token隔离] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username -> 仅 UserName
+  [PASS] [端点隔离] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 -> 仅 Basic128Rsa15/SignAndEncrypt
+  [PASS] [Token隔离] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48739 Basic256/Sign (废弃) anon -> 仅 Basic256/Sign
+  [PASS] [Token隔离] p48739 Basic256/Sign (废弃) anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48740 Basic256/Sign (废弃) username -> 仅 Basic256/Sign
+  [PASS] [Token隔离] p48740 Basic256/Sign (废弃) username -> 仅 UserName
+  [PASS] [端点隔离] p48741 Basic256/Sign (废弃) x509 -> 仅 Basic256/Sign
+  [PASS] [Token隔离] p48741 Basic256/Sign (废弃) x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48742 Basic256/SignAndEncrypt (废弃) anon -> 仅 Basic256/SignAndEncrypt
+  [PASS] [Token隔离] p48742 Basic256/SignAndEncrypt (废弃) anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48743 Basic256/SignAndEncrypt (废弃) username -> 仅 Basic256/SignAndEncrypt
+  [PASS] [Token隔离] p48743 Basic256/SignAndEncrypt (废弃) username -> 仅 UserName
+  [PASS] [端点隔离] p48744 Basic256/SignAndEncrypt (废弃) x509 -> 仅 Basic256/SignAndEncrypt
+  [PASS] [Token隔离] p48744 Basic256/SignAndEncrypt (废弃) x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48745 Basic256Sha256/Sign anon -> 仅 Basic256Sha256/Sign
+  [PASS] [Token隔离] p48745 Basic256Sha256/Sign anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48746 Basic256Sha256/Sign username -> 仅 Basic256Sha256/Sign
+  [PASS] [Token隔离] p48746 Basic256Sha256/Sign username -> 仅 UserName
+  [PASS] [端点隔离] p48747 Basic256Sha256/Sign x509 -> 仅 Basic256Sha256/Sign
+  [PASS] [Token隔离] p48747 Basic256Sha256/Sign x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48748 Basic256Sha256/SignAndEncrypt anon -> 仅 Basic256Sha256/SignAndEncrypt
+  [PASS] [Token隔离] p48748 Basic256Sha256/SignAndEncrypt anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48749 Basic256Sha256/SignAndEncrypt username -> 仅 Basic256Sha256/SignAndEncrypt
+  [PASS] [Token隔离] p48749 Basic256Sha256/SignAndEncrypt username -> 仅 UserName
+  [PASS] [端点隔离] p48750 Basic256Sha256/SignAndEncrypt x509 -> 仅 Basic256Sha256/SignAndEncrypt
+  [PASS] [Token隔离] p48750 Basic256Sha256/SignAndEncrypt x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48752 Aes128Sha256RsaOaep/Sign username -> 仅 Aes128Sha256RsaOaep/Sign
+  [PASS] [Token隔离] p48752 Aes128Sha256RsaOaep/Sign username -> 仅 UserName
+  [PASS] [端点隔离] p48751 Aes128Sha256RsaOaep/Sign anon -> 仅 Aes128Sha256RsaOaep/Sign
+  [PASS] [Token隔离] p48751 Aes128Sha256RsaOaep/Sign anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48753 Aes128Sha256RsaOaep/Sign x509 -> 仅 Aes128Sha256RsaOaep/Sign
+  [PASS] [Token隔离] p48753 Aes128Sha256RsaOaep/Sign x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username -> 仅 Aes128Sha256RsaOaep/SignAndEncrypt
+  [PASS] [Token隔离] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username -> 仅 UserName
+  [PASS] [端点隔离] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon -> 仅 Aes128Sha256RsaOaep/SignAndEncrypt
+  [PASS] [Token隔离] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48757 Aes256Sha256RsaPss/Sign anon -> 仅 Aes256Sha256RsaPss/Sign
+  [PASS] [Token隔离] p48757 Aes256Sha256RsaPss/Sign anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 -> 仅 Aes128Sha256RsaOaep/SignAndEncrypt
+  [PASS] [Token隔离] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48759 Aes256Sha256RsaPss/Sign x509 -> 仅 Aes256Sha256RsaPss/Sign
+  [PASS] [Token隔离] p48759 Aes256Sha256RsaPss/Sign x509 -> 仅 Certificate
+  [PASS] [端点隔离] p48758 Aes256Sha256RsaPss/Sign username -> 仅 Aes256Sha256RsaPss/Sign
+  [PASS] [Token隔离] p48758 Aes256Sha256RsaPss/Sign username -> 仅 UserName
+  [PASS] [端点隔离] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon -> 仅 Aes256Sha256RsaPss/SignAndEncrypt
+  [PASS] [Token隔离] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon -> 仅 Anonymous
+  [PASS] [端点隔离] p48761 Aes256Sha256RsaPss/SignAndEncrypt username -> 仅 Aes256Sha256RsaPss/SignAndEncrypt
+  [PASS] [Token隔离] p48761 Aes256Sha256RsaPss/SignAndEncrypt username -> 仅 UserName
+  [PASS] [端点隔离] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 -> 仅 Aes256Sha256RsaPss/SignAndEncrypt
+  [PASS] [Token隔离] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 -> 仅 Certificate
+
+Case 4. 负向抽样：每端口 2 条，其余组合必须失败
+
+  [PASS] [负向1] p48732 None/None x509 尝试 None/None/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48730 None/None anon 尝试 None/None/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48731 None/None username 尝试 None/None/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48733 Basic128Rsa15/Sign (废弃) anon 尝试 Basic128Rsa15/Sign/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48734 Basic128Rsa15/Sign (废弃) username 尝试 Basic128Rsa15/Sign/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48735 Basic128Rsa15/Sign (废弃) x509 尝试 Basic128Rsa15/Sign/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48732 None/None x509 尝试 Basic128Rsa15/Sign/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48730 None/None anon 尝试 Basic128Rsa15/Sign/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48731 None/None username 尝试 Basic128Rsa15/Sign/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48733 Basic128Rsa15/Sign (废弃) anon 尝试 Basic128Rsa15/SignAndEncrypt/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon 尝试 Basic128Rsa15/SignAndEncrypt/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48734 Basic128Rsa15/Sign (废弃) username 尝试 Basic128Rsa15/SignAndEncrypt/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username 尝试 Basic128Rsa15/SignAndEncrypt/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48735 Basic128Rsa15/Sign (废弃) x509 尝试 Basic128Rsa15/SignAndEncrypt/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 尝试 Basic128Rsa15/SignAndEncrypt/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48739 Basic256/Sign (废弃) anon 尝试 Basic256/Sign/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48740 Basic256/Sign (废弃) username 尝试 Basic256/Sign/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48741 Basic256/Sign (废弃) x509 尝试 Basic256/Sign/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon 尝试 Basic256/Sign/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username 尝试 Basic256/Sign/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48742 Basic256/SignAndEncrypt (废弃) anon 尝试 Basic256/SignAndEncrypt/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48743 Basic256/SignAndEncrypt (废弃) username 尝试 Basic256/SignAndEncrypt/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 尝试 Basic256/Sign/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48739 Basic256/Sign (废弃) anon 尝试 Basic256/SignAndEncrypt/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48744 Basic256/SignAndEncrypt (废弃) x509 尝试 Basic256/SignAndEncrypt/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48740 Basic256/Sign (废弃) username 尝试 Basic256/SignAndEncrypt/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48745 Basic256Sha256/Sign anon 尝试 Basic256Sha256/Sign/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48741 Basic256/Sign (废弃) x509 尝试 Basic256/SignAndEncrypt/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48746 Basic256Sha256/Sign username 尝试 Basic256Sha256/Sign/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48747 Basic256Sha256/Sign x509 尝试 Basic256Sha256/Sign/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48742 Basic256/SignAndEncrypt (废弃) anon 尝试 Basic256Sha256/Sign/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48748 Basic256Sha256/SignAndEncrypt anon 尝试 Basic256Sha256/SignAndEncrypt/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48743 Basic256/SignAndEncrypt (废弃) username 尝试 Basic256Sha256/Sign/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48749 Basic256Sha256/SignAndEncrypt username 尝试 Basic256Sha256/SignAndEncrypt/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48744 Basic256/SignAndEncrypt (废弃) x509 尝试 Basic256Sha256/Sign/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48745 Basic256Sha256/Sign anon 尝试 Basic256Sha256/SignAndEncrypt/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48750 Basic256Sha256/SignAndEncrypt x509 尝试 Basic256Sha256/SignAndEncrypt/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48751 Aes128Sha256RsaOaep/Sign anon 尝试 Aes128Sha256RsaOaep/Sign/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48746 Basic256Sha256/Sign username 尝试 Basic256Sha256/SignAndEncrypt/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48747 Basic256Sha256/Sign x509 尝试 Basic256Sha256/SignAndEncrypt/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48752 Aes128Sha256RsaOaep/Sign username 尝试 Aes128Sha256RsaOaep/Sign/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48753 Aes128Sha256RsaOaep/Sign x509 尝试 Aes128Sha256RsaOaep/Sign/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48748 Basic256Sha256/SignAndEncrypt anon 尝试 Aes128Sha256RsaOaep/Sign/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48749 Basic256Sha256/SignAndEncrypt username 尝试 Aes128Sha256RsaOaep/Sign/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48750 Basic256Sha256/SignAndEncrypt x509 尝试 Aes128Sha256RsaOaep/Sign/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48751 Aes128Sha256RsaOaep/Sign anon 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48757 Aes256Sha256RsaPss/Sign anon 尝试 Aes256Sha256RsaPss/Sign/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48752 Aes128Sha256RsaOaep/Sign username 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48753 Aes128Sha256RsaOaep/Sign x509 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48758 Aes256Sha256RsaPss/Sign username 尝试 Aes256Sha256RsaPss/Sign/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向1] p48759 Aes256Sha256RsaPss/Sign x509 尝试 Aes256Sha256RsaPss/Sign/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon 尝试 Aes256Sha256RsaPss/Sign/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon 尝试 Aes256Sha256RsaPss/SignAndEncrypt/username -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon 尝试 None/None/anon -> Endpoint selection 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username 尝试 Aes256Sha256RsaPss/Sign/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48761 Aes256Sha256RsaPss/SignAndEncrypt username 尝试 None/None/username -> Endpoint selection 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 尝试 Aes256Sha256RsaPss/Sign/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48761 Aes256Sha256RsaPss/SignAndEncrypt username 尝试 Aes256Sha256RsaPss/SignAndEncrypt/x509 -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48757 Aes256Sha256RsaPss/Sign anon 尝试 Aes256Sha256RsaPss/SignAndEncrypt/anon -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 尝试 None/None/x509 -> Endpoint selection 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向1] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 尝试 Aes256Sha256RsaPss/SignAndEncrypt/anon -> ActivateSession 拒绝 (该端口未开放此认证方式)
+  [PASS] [负向2] p48758 Aes256Sha256RsaPss/Sign username 尝试 Aes256Sha256RsaPss/SignAndEncrypt/username -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+  [PASS] [负向2] p48759 Aes256Sha256RsaPss/Sign x509 尝试 Aes256Sha256RsaPss/SignAndEncrypt/x509 -> GetEndpoints 拒绝 (该端口未发布此端点组合)
+==============================================================================
+
+全拆矩阵测试 汇总：
+  PASS  [正向] p48731 None/None username
+  PASS  [正向] p48730 None/None anon
+  PASS  [正向] p48734 Basic128Rsa15/Sign (废弃) username
+  PASS  [正向] p48733 Basic128Rsa15/Sign (废弃) anon
+  PASS  [正向] p48735 Basic128Rsa15/Sign (废弃) x509
+  PASS  [正向] p48732 None/None x509
+  PASS  [正向] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username
+  PASS  [正向] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon
+  PASS  [正向] p48739 Basic256/Sign (废弃) anon
+  PASS  [正向] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509
+  PASS  [正向] p48740 Basic256/Sign (废弃) username
+  PASS  [正向] p48741 Basic256/Sign (废弃) x509
+  PASS  [正向] p48742 Basic256/SignAndEncrypt (废弃) anon
+  PASS  [正向] p48743 Basic256/SignAndEncrypt (废弃) username
+  PASS  [正向] p48744 Basic256/SignAndEncrypt (废弃) x509
+  PASS  [正向] p48745 Basic256Sha256/Sign anon
+  PASS  [正向] p48746 Basic256Sha256/Sign username
+  PASS  [正向] p48748 Basic256Sha256/SignAndEncrypt anon
+  PASS  [正向] p48749 Basic256Sha256/SignAndEncrypt username
+  PASS  [正向] p48747 Basic256Sha256/Sign x509
+  PASS  [正向] p48751 Aes128Sha256RsaOaep/Sign anon
+  PASS  [正向] p48752 Aes128Sha256RsaOaep/Sign username
+  PASS  [正向] p48750 Basic256Sha256/SignAndEncrypt x509
+  PASS  [正向] p48753 Aes128Sha256RsaOaep/Sign x509
+  PASS  [正向] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon
+  PASS  [正向] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username
+  PASS  [正向] p48758 Aes256Sha256RsaPss/Sign username
+  PASS  [正向] p48757 Aes256Sha256RsaPss/Sign anon
+  PASS  [正向] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509
+  PASS  [正向] p48761 Aes256Sha256RsaPss/SignAndEncrypt username
+  PASS  [正向] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon
+  PASS  [正向] p48759 Aes256Sha256RsaPss/Sign x509
+  PASS  [正向] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509
+  PASS  [端点隔离] p48730 None/None anon
+  PASS  [Token隔离] p48730 None/None anon
+  PASS  [端点隔离] p48732 None/None x509
+  PASS  [Token隔离] p48732 None/None x509
+  PASS  [端点隔离] p48731 None/None username
+  PASS  [Token隔离] p48731 None/None username
+  PASS  [端点隔离] p48733 Basic128Rsa15/Sign (废弃) anon
+  PASS  [Token隔离] p48733 Basic128Rsa15/Sign (废弃) anon
+  PASS  [端点隔离] p48735 Basic128Rsa15/Sign (废弃) x509
+  PASS  [Token隔离] p48735 Basic128Rsa15/Sign (废弃) x509
+  PASS  [端点隔离] p48734 Basic128Rsa15/Sign (废弃) username
+  PASS  [Token隔离] p48734 Basic128Rsa15/Sign (废弃) username
+  PASS  [端点隔离] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon
+  PASS  [Token隔离] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon
+  PASS  [端点隔离] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username
+  PASS  [Token隔离] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username
+  PASS  [端点隔离] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509
+  PASS  [Token隔离] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509
+  PASS  [端点隔离] p48739 Basic256/Sign (废弃) anon
+  PASS  [Token隔离] p48739 Basic256/Sign (废弃) anon
+  PASS  [端点隔离] p48740 Basic256/Sign (废弃) username
+  PASS  [Token隔离] p48740 Basic256/Sign (废弃) username
+  PASS  [端点隔离] p48741 Basic256/Sign (废弃) x509
+  PASS  [Token隔离] p48741 Basic256/Sign (废弃) x509
+  PASS  [端点隔离] p48742 Basic256/SignAndEncrypt (废弃) anon
+  PASS  [Token隔离] p48742 Basic256/SignAndEncrypt (废弃) anon
+  PASS  [端点隔离] p48743 Basic256/SignAndEncrypt (废弃) username
+  PASS  [Token隔离] p48743 Basic256/SignAndEncrypt (废弃) username
+  PASS  [端点隔离] p48744 Basic256/SignAndEncrypt (废弃) x509
+  PASS  [Token隔离] p48744 Basic256/SignAndEncrypt (废弃) x509
+  PASS  [端点隔离] p48745 Basic256Sha256/Sign anon
+  PASS  [Token隔离] p48745 Basic256Sha256/Sign anon
+  PASS  [端点隔离] p48746 Basic256Sha256/Sign username
+  PASS  [Token隔离] p48746 Basic256Sha256/Sign username
+  PASS  [端点隔离] p48747 Basic256Sha256/Sign x509
+  PASS  [Token隔离] p48747 Basic256Sha256/Sign x509
+  PASS  [端点隔离] p48748 Basic256Sha256/SignAndEncrypt anon
+  PASS  [Token隔离] p48748 Basic256Sha256/SignAndEncrypt anon
+  PASS  [端点隔离] p48749 Basic256Sha256/SignAndEncrypt username
+  PASS  [Token隔离] p48749 Basic256Sha256/SignAndEncrypt username
+  PASS  [端点隔离] p48750 Basic256Sha256/SignAndEncrypt x509
+  PASS  [Token隔离] p48750 Basic256Sha256/SignAndEncrypt x509
+  PASS  [端点隔离] p48752 Aes128Sha256RsaOaep/Sign username
+  PASS  [Token隔离] p48752 Aes128Sha256RsaOaep/Sign username
+  PASS  [端点隔离] p48751 Aes128Sha256RsaOaep/Sign anon
+  PASS  [Token隔离] p48751 Aes128Sha256RsaOaep/Sign anon
+  PASS  [端点隔离] p48753 Aes128Sha256RsaOaep/Sign x509
+  PASS  [Token隔离] p48753 Aes128Sha256RsaOaep/Sign x509
+  PASS  [端点隔离] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username
+  PASS  [Token隔离] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username
+  PASS  [端点隔离] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon
+  PASS  [Token隔离] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon
+  PASS  [端点隔离] p48757 Aes256Sha256RsaPss/Sign anon
+  PASS  [Token隔离] p48757 Aes256Sha256RsaPss/Sign anon
+  PASS  [端点隔离] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509
+  PASS  [Token隔离] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509
+  PASS  [端点隔离] p48759 Aes256Sha256RsaPss/Sign x509
+  PASS  [Token隔离] p48759 Aes256Sha256RsaPss/Sign x509
+  PASS  [端点隔离] p48758 Aes256Sha256RsaPss/Sign username
+  PASS  [Token隔离] p48758 Aes256Sha256RsaPss/Sign username
+  PASS  [端点隔离] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon
+  PASS  [Token隔离] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon
+  PASS  [端点隔离] p48761 Aes256Sha256RsaPss/SignAndEncrypt username
+  PASS  [Token隔离] p48761 Aes256Sha256RsaPss/SignAndEncrypt username
+  PASS  [端点隔离] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509
+  PASS  [Token隔离] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509
+  PASS  [负向1] p48732 None/None x509 尝试 None/None/anon
+  PASS  [负向1] p48730 None/None anon 尝试 None/None/username
+  PASS  [负向1] p48731 None/None username 尝试 None/None/x509
+  PASS  [负向1] p48733 Basic128Rsa15/Sign (废弃) anon 尝试 Basic128Rsa15/Sign/username
+  PASS  [负向1] p48734 Basic128Rsa15/Sign (废弃) username 尝试 Basic128Rsa15/Sign/x509
+  PASS  [负向1] p48735 Basic128Rsa15/Sign (废弃) x509 尝试 Basic128Rsa15/Sign/anon
+  PASS  [负向2] p48732 None/None x509 尝试 Basic128Rsa15/Sign/x509
+  PASS  [负向2] p48730 None/None anon 尝试 Basic128Rsa15/Sign/anon
+  PASS  [负向2] p48731 None/None username 尝试 Basic128Rsa15/Sign/username
+  PASS  [负向2] p48733 Basic128Rsa15/Sign (废弃) anon 尝试 Basic128Rsa15/SignAndEncrypt/anon
+  PASS  [负向1] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon 尝试 Basic128Rsa15/SignAndEncrypt/username
+  PASS  [负向2] p48734 Basic128Rsa15/Sign (废弃) username 尝试 Basic128Rsa15/SignAndEncrypt/username
+  PASS  [负向1] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username 尝试 Basic128Rsa15/SignAndEncrypt/x509
+  PASS  [负向2] p48735 Basic128Rsa15/Sign (废弃) x509 尝试 Basic128Rsa15/SignAndEncrypt/x509
+  PASS  [负向1] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 尝试 Basic128Rsa15/SignAndEncrypt/anon
+  PASS  [负向1] p48739 Basic256/Sign (废弃) anon 尝试 Basic256/Sign/username
+  PASS  [负向1] p48740 Basic256/Sign (废弃) username 尝试 Basic256/Sign/x509
+  PASS  [负向1] p48741 Basic256/Sign (废弃) x509 尝试 Basic256/Sign/anon
+  PASS  [负向2] p48736 Basic128Rsa15/SignAndEncrypt (废弃) anon 尝试 Basic256/Sign/anon
+  PASS  [负向2] p48737 Basic128Rsa15/SignAndEncrypt (废弃) username 尝试 Basic256/Sign/username
+  PASS  [负向1] p48742 Basic256/SignAndEncrypt (废弃) anon 尝试 Basic256/SignAndEncrypt/username
+  PASS  [负向1] p48743 Basic256/SignAndEncrypt (废弃) username 尝试 Basic256/SignAndEncrypt/x509
+  PASS  [负向2] p48738 Basic128Rsa15/SignAndEncrypt (废弃) x509 尝试 Basic256/Sign/x509
+  PASS  [负向2] p48739 Basic256/Sign (废弃) anon 尝试 Basic256/SignAndEncrypt/anon
+  PASS  [负向1] p48744 Basic256/SignAndEncrypt (废弃) x509 尝试 Basic256/SignAndEncrypt/anon
+  PASS  [负向2] p48740 Basic256/Sign (废弃) username 尝试 Basic256/SignAndEncrypt/username
+  PASS  [负向1] p48745 Basic256Sha256/Sign anon 尝试 Basic256Sha256/Sign/username
+  PASS  [负向2] p48741 Basic256/Sign (废弃) x509 尝试 Basic256/SignAndEncrypt/x509
+  PASS  [负向1] p48746 Basic256Sha256/Sign username 尝试 Basic256Sha256/Sign/x509
+  PASS  [负向1] p48747 Basic256Sha256/Sign x509 尝试 Basic256Sha256/Sign/anon
+  PASS  [负向2] p48742 Basic256/SignAndEncrypt (废弃) anon 尝试 Basic256Sha256/Sign/anon
+  PASS  [负向1] p48748 Basic256Sha256/SignAndEncrypt anon 尝试 Basic256Sha256/SignAndEncrypt/username
+  PASS  [负向2] p48743 Basic256/SignAndEncrypt (废弃) username 尝试 Basic256Sha256/Sign/username
+  PASS  [负向1] p48749 Basic256Sha256/SignAndEncrypt username 尝试 Basic256Sha256/SignAndEncrypt/x509
+  PASS  [负向2] p48744 Basic256/SignAndEncrypt (废弃) x509 尝试 Basic256Sha256/Sign/x509
+  PASS  [负向2] p48745 Basic256Sha256/Sign anon 尝试 Basic256Sha256/SignAndEncrypt/anon
+  PASS  [负向1] p48750 Basic256Sha256/SignAndEncrypt x509 尝试 Basic256Sha256/SignAndEncrypt/anon
+  PASS  [负向1] p48751 Aes128Sha256RsaOaep/Sign anon 尝试 Aes128Sha256RsaOaep/Sign/username
+  PASS  [负向2] p48746 Basic256Sha256/Sign username 尝试 Basic256Sha256/SignAndEncrypt/username
+  PASS  [负向2] p48747 Basic256Sha256/Sign x509 尝试 Basic256Sha256/SignAndEncrypt/x509
+  PASS  [负向1] p48752 Aes128Sha256RsaOaep/Sign username 尝试 Aes128Sha256RsaOaep/Sign/x509
+  PASS  [负向1] p48753 Aes128Sha256RsaOaep/Sign x509 尝试 Aes128Sha256RsaOaep/Sign/anon
+  PASS  [负向2] p48748 Basic256Sha256/SignAndEncrypt anon 尝试 Aes128Sha256RsaOaep/Sign/anon
+  PASS  [负向1] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/username
+  PASS  [负向2] p48749 Basic256Sha256/SignAndEncrypt username 尝试 Aes128Sha256RsaOaep/Sign/username
+  PASS  [负向1] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/x509
+  PASS  [负向2] p48750 Basic256Sha256/SignAndEncrypt x509 尝试 Aes128Sha256RsaOaep/Sign/x509
+  PASS  [负向2] p48751 Aes128Sha256RsaOaep/Sign anon 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/anon
+  PASS  [负向1] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/anon
+  PASS  [负向1] p48757 Aes256Sha256RsaPss/Sign anon 尝试 Aes256Sha256RsaPss/Sign/username
+  PASS  [负向2] p48752 Aes128Sha256RsaOaep/Sign username 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/username
+  PASS  [负向2] p48753 Aes128Sha256RsaOaep/Sign x509 尝试 Aes128Sha256RsaOaep/SignAndEncrypt/x509
+  PASS  [负向1] p48758 Aes256Sha256RsaPss/Sign username 尝试 Aes256Sha256RsaPss/Sign/x509
+  PASS  [负向1] p48759 Aes256Sha256RsaPss/Sign x509 尝试 Aes256Sha256RsaPss/Sign/anon
+  PASS  [负向2] p48754 Aes128Sha256RsaOaep/SignAndEncrypt anon 尝试 Aes256Sha256RsaPss/Sign/anon
+  PASS  [负向1] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon 尝试 Aes256Sha256RsaPss/SignAndEncrypt/username
+  PASS  [负向2] p48760 Aes256Sha256RsaPss/SignAndEncrypt anon 尝试 None/None/anon
+  PASS  [负向2] p48755 Aes128Sha256RsaOaep/SignAndEncrypt username 尝试 Aes256Sha256RsaPss/Sign/username
+  PASS  [负向2] p48761 Aes256Sha256RsaPss/SignAndEncrypt username 尝试 None/None/username
+  PASS  [负向2] p48756 Aes128Sha256RsaOaep/SignAndEncrypt x509 尝试 Aes256Sha256RsaPss/Sign/x509
+  PASS  [负向1] p48761 Aes256Sha256RsaPss/SignAndEncrypt username 尝试 Aes256Sha256RsaPss/SignAndEncrypt/x509
+  PASS  [负向2] p48757 Aes256Sha256RsaPss/Sign anon 尝试 Aes256Sha256RsaPss/SignAndEncrypt/anon
+  PASS  [负向2] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 尝试 None/None/x509
+  PASS  [负向1] p48762 Aes256Sha256RsaPss/SignAndEncrypt x509 尝试 Aes256Sha256RsaPss/SignAndEncrypt/anon
+  PASS  [负向2] p48758 Aes256Sha256RsaPss/Sign username 尝试 Aes256Sha256RsaPss/SignAndEncrypt/username
+  PASS  [负向2] p48759 Aes256Sha256RsaPss/Sign x509 尝试 Aes256Sha256RsaPss/SignAndEncrypt/x509
+
+全部 165 个用例通过。
+
+==================== auth_negative_tests ====================
+UA Auth Lab 负向认证测试（manifest 驱动）
+
+  User 层端口   : username=48749  x509=48750
+  App 层端口    : 48748
+  None 拒绝端口 : 48733
+==========================================================================
+Case 1. 错误用户名（正确密码）  [48749 Basic256Sha256/SignAndEncrypt]：
+
+  [PASS] Case 1 错误用户名 -> ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 2. 错误密码（正确用户名）  [48749]：
+
+  [PASS] Case 2 错误密码 -> ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 3. 未注册 User 证书  [48750]：
+
+  [PASS] Case 3 未注册 User 证书 -> ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 4. 过期 User 证书（已在白名单）  [48750]：
+
+  [PASS] Case 4 过期 User 证书 -> CreateSession 通过, User 层拒绝: BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 5. 错误 User 私钥（User 证书正确）  [48750]：
+
+  [PASS] Case 5 错误 User 私钥 -> ActivateSession -> BadIdentityTokenInvalid: The user identity token is not valid.(BadIdentityTokenInvalid)
+
+Case 6. 把 Application 证书当成 User 证书  [48750]：
+
+  [PASS] Case 6 App 证书冒充 User 证书 -> CreateSession 通过, User 层拒绝同一张证书: ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 7. 未受信 Application 证书  [48748]：
+
+  [PASS] Case 7 未受信 App 证书 -> CreateSession -> BadCertificateUntrusted: The certificate is not trusted.(BadCertificateUntrusted)
+
+Case 8. 过期 Application 证书  [48748]：
+
+  [PASS] Case 8 过期 App 证书 -> CreateSession -> BadCertificateTimeInvalid: The certificate has expired or is not yet valid.(BadCertificateTimeInvalid)
+
+Case 9. Application 证书 URI 不匹配  [48748]：
+
+  [PASS] Case 9 App 证书 URI 不匹配 -> CreateSession -> BadCertificateUriInvalid: The URI specified in the ApplicationDescription does not match the URI in the certificate.(BadCertificateUriInvalid)
+
+Case 10. Application 证书/私钥不匹配  [48748]：
+
+  [PASS] Case 10 App 证书/私钥不匹配 -> OpenSecureChannel 阶段失败: TimeoutError: 
+
+Case 11. None/None Session 尝试（加密端口不发布）  [48733]：
+
+  [PASS] Case 11 None/None Session 拒绝 -> 服务器不暴露 None/None Session endpoint: UaError: No matching endpoint for None/None. Server exposes: ['http://opcfoundation.org/UA/SecurityPolicy#Basic128Rsa15 / Sign']
+==========================================================================
+
+负向认证测试 汇总：
+  PASS  Case 1 错误用户名
+  PASS  Case 2 错误密码
+  PASS  Case 3 未注册 User 证书
+  PASS  Case 4 过期 User 证书
+  PASS  Case 5 错误 User 私钥
+  PASS  Case 6 App 证书冒充 User 证书
+  PASS  Case 7 未受信 App 证书
+  PASS  Case 8 过期 App 证书
+  PASS  Case 9 App 证书 URI 不匹配
+  PASS  Case 10 App 证书/私钥不匹配
+  PASS  Case 11 None/None Session 拒绝
+
+全部 11 个用例通过。
+
+==================== auth_concurrent_tests ====================
+UA Auth Lab 并发认证隔离测试（manifest 驱动）
+
+==========================================================================
+参与端口:
+  p48748  Basic256Sha256/SignAndEncrypt  auth=anon
+  p48749  Basic256Sha256/SignAndEncrypt  auth=username
+  p48750  Basic256Sha256/SignAndEncrypt  auth=x509
+
+每端口并发 5 有效 + 10 无效 ...
+
+  [PASS] p48748 Basic256Sha256/SignAndEncrypt anon 有效方式全部成功 (5/5) 
+  [PASS] p48748 Basic256Sha256/SignAndEncrypt anon 拒绝 username(未开放) (5/5) 
+  [PASS] p48748 Basic256Sha256/SignAndEncrypt anon 拒绝 x509(未开放) (5/5) 
+  [PASS] p48749 Basic256Sha256/SignAndEncrypt username 有效方式全部成功 (5/5) 
+  [PASS] p48749 Basic256Sha256/SignAndEncrypt username 拒绝 anon(未开放) (5/5) 
+  [PASS] p48749 Basic256Sha256/SignAndEncrypt username 拒绝 x509(未开放) (5/5) 
+  [PASS] p48750 Basic256Sha256/SignAndEncrypt x509 有效方式全部成功 (5/5) 
+  [PASS] p48750 Basic256Sha256/SignAndEncrypt x509 拒绝 anon(未开放) (5/5) 
+  [PASS] p48750 Basic256Sha256/SignAndEncrypt x509 拒绝 username(未开放) (5/5) 
+==========================================================================
+
+并发认证隔离测试 汇总：
+  PASS  p48748 Basic256Sha256/SignAndEncrypt anon 有效方式全部成功 (5/5)
+  PASS  p48748 Basic256Sha256/SignAndEncrypt anon 拒绝 username(未开放) (5/5)
+  PASS  p48748 Basic256Sha256/SignAndEncrypt anon 拒绝 x509(未开放) (5/5)
+  PASS  p48749 Basic256Sha256/SignAndEncrypt username 有效方式全部成功 (5/5)
+  PASS  p48749 Basic256Sha256/SignAndEncrypt username 拒绝 anon(未开放) (5/5)
+  PASS  p48749 Basic256Sha256/SignAndEncrypt username 拒绝 x509(未开放) (5/5)
+  PASS  p48750 Basic256Sha256/SignAndEncrypt x509 有效方式全部成功 (5/5)
+  PASS  p48750 Basic256Sha256/SignAndEncrypt x509 拒绝 anon(未开放) (5/5)
+  PASS  p48750 Basic256Sha256/SignAndEncrypt x509 拒绝 username(未开放) (5/5)
+
+全部 9 个用例通过。

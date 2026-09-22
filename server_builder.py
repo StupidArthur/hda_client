@@ -87,11 +87,68 @@ class DiscoveryCleanServer(Server):
       但从 iserver.endpoints 移除 SecurityMode == None 的 EndpointDescription，
       使 GetEndpoints 只返回真正支持 Session 的 secure endpoints。
 
+    开关（组态 security，默认见括号）：
+      keep_none_endpoint (false)：
+          false -> 默认行为，None/None 仅作 discovery，从 GetEndpoints 移除
+          true  -> 保留 None/None 作为正式 Session 端点（"不加密通道"场景
+                   必须为 true，否则客户端在选端点阶段即失败）
+      only_none_endpoint (false)：
+          true  -> 只保留 None/None 一个端点，其余（加密）端点全部移除。
+                   用途：asyncua 的 _set_endpoints() 在 mode==None_ 时需要从
+                   _security_policy 里找一个带签名能力的策略，才能把
+                   X509IdentityToken 加进端点的 UserIdentityTokens；纯
+                   [NoSecurity] 配置下找不到 -> token 列表为空 -> X509 用户
+                   认证不可用（BadIdentityTokenInvalid）。因此"None/None + x509"
+                   这一格需要在 policies 里额外带一个加密策略以提供签名算法，
+                   再用本开关把该加密端点从 GetEndpoints 摘掉，隔离语义不变。
+                   （_set_endpoints 在本过滤之前执行，故 token 已填好。）
+
+      _setup_server_nodes() 在 Server.start() 内调用，晚于 build_server()，
+      因此由 build_server() 按组态赋值本属性即可见效。
+
     不修改 asyncua site-packages 源码。
     """
 
+    # 由 build_server() 按组态覆盖
+    keep_none_endpoint: bool = False
+    only_none_endpoint: bool = False
+
     async def _setup_server_nodes(self) -> None:
         await super()._setup_server_nodes()
+        if self.only_none_endpoint:
+            before = len(self.iserver.endpoints)
+            self.iserver.endpoints[:] = [
+                e for e in self.iserver.endpoints
+                if e.SecurityPolicyUri == SecurityPolicyNone.URI
+                and e.SecurityMode == ua.MessageSecurityMode.None_
+            ]
+            # 同时摘掉 _policies 里的加密工厂：否则客户端可绕过 GetEndpoints
+            # 直接用注入的加密策略开通道，破坏"该端口只支持 None 通道"的隔离。
+            # 只保留 SecurityPolicyNone 工厂（unsecured Discovery / Session 仍可用）。
+            before_p = len(self._policies)
+            self._policies[:] = [
+                f for f in self._policies if f.cls is SecurityPolicyNone
+            ]
+            logger.info(
+                "仅保留 None/None 端点（组态 security.only_none_endpoint=true）: "
+                "端点 %d -> %d, 通道策略 %d -> %d"
+                "（注入的加密策略已从 GetEndpoints 与可建通道中移除，"
+                "仅用于提供 X509 token 的签名算法）",
+                before, len(self.iserver.endpoints),
+                before_p, len(self._policies),
+            )
+            if not self.iserver.endpoints:
+                logger.error("only_none_endpoint 过滤后无任何端点（policies 缺 NoSecurity？）")
+            if not self._policies:
+                logger.error("only_none_endpoint 过滤后无任何可用通道策略")
+            return
+        if self.keep_none_endpoint:
+            logger.info(
+                "保留 None/None 端点（组态 security.keep_none_endpoint=true）: "
+                "GetEndpoints 返回 %d 个端点（含 None/None Session 端点）",
+                len(self.iserver.endpoints),
+            )
+            return
         # 只移除 None/None 的 EndpointDescription，不动 _policies。
         self.iserver.endpoints[:] = [
             e for e in self.iserver.endpoints
@@ -129,8 +186,17 @@ class MockerRoleRuleset(PermissionRuleset):
         return action_type_id in self._permission_dict[user.role]
 
 # 策略名 -> ua.SecurityPolicyType。NoSecurity 仅当组态显式开启时才加入。
+# 覆盖 OPC UA Part 7 定义的全部 6 种 SecurityPolicy × 有效 MessageSecurityMode
+# 共 11 个合法组合（None 只配 None；其余 5 种只配 Sign / SignAndEncrypt）。
+# 注：Basic128Rsa15 / Basic256 已被 OPC Foundation 在 spec 1.04 标为 deprecated
+#（SHA-1 碰撞、RSA PKCS#1 v1.5 padding-oracle），asyncua 仍可运行，仅在日志打印
+# DEPRECATED 告警；为兼容仍会列出这些策略的第三方客户端，本 mocker 全量纳入。
 POLICY_NAME_TO_TYPE = {
     "NoSecurity": ua.SecurityPolicyType.NoSecurity,
+    "Basic128Rsa15_Sign": ua.SecurityPolicyType.Basic128Rsa15_Sign,
+    "Basic128Rsa15_SignAndEncrypt": ua.SecurityPolicyType.Basic128Rsa15_SignAndEncrypt,
+    "Basic256_Sign": ua.SecurityPolicyType.Basic256_Sign,
+    "Basic256_SignAndEncrypt": ua.SecurityPolicyType.Basic256_SignAndEncrypt,
     "Basic256Sha256_Sign": ua.SecurityPolicyType.Basic256Sha256_Sign,
     "Basic256Sha256_SignAndEncrypt": ua.SecurityPolicyType.Basic256Sha256_SignAndEncrypt,
     "Aes128Sha256RsaOaep_Sign": ua.SecurityPolicyType.Aes128Sha256RsaOaep_Sign,
@@ -162,6 +228,32 @@ def _require_secured_session(cfg: dict[str, Any]) -> bool:
     if isinstance(security, dict) and "require_secured_session" in security:
         return bool(security["require_secured_session"])
     return True
+
+
+def _keep_none_endpoint(cfg: dict[str, Any]) -> bool:
+    """是否保留 None/None 作为正式 Session 端点（默认 False = discovery-only）。
+
+    "不加密通道" 场景（组态 policies 含 NoSecurity 且要建 Session）必须设为 true，
+    否则 DiscoveryCleanServer 会把 None/None 端点从 GetEndpoints 移除，
+    客户端在选端点阶段即失败。
+    """
+    security = cfg.get("security")
+    if isinstance(security, dict) and "keep_none_endpoint" in security:
+        return bool(security["keep_none_endpoint"])
+    return False
+
+
+def _only_none_endpoint(cfg: dict[str, Any]) -> bool:
+    """是否只保留 None/None 端点（默认 False）。
+
+    用于 "None/None + X509 用户认证" 场景：policies 需额外带一个加密策略来
+    提供 X509 token 的签名算法，再用本开关把该加密端点从 GetEndpoints 摘除，
+    使该端口对外仍只暴露 None/None 一个端点（隔离语义不变）。
+    """
+    security = cfg.get("security")
+    if isinstance(security, dict) and "only_none_endpoint" in security:
+        return bool(security["only_none_endpoint"])
+    return False
 
 
 def _load_trust(trust_dir: Path) -> TrustStore:
@@ -278,6 +370,15 @@ async def build_server(cfg: dict[str, Any]) -> Server:
     server.set_security_policy(policies, permission_ruleset=MockerRoleRuleset())
     logger.info("安全策略: %s", policy_names)
 
+    # None/None 是否作为正式 Session 端点保留（必须在 start() 前赋值，
+    # 因为 DiscoveryCleanServer._setup_server_nodes() 在 start() 内执行）。
+    server.keep_none_endpoint = _keep_none_endpoint(cfg)  # type: ignore[attr-defined]
+    server.only_none_endpoint = _only_none_endpoint(cfg)  # type: ignore[attr-defined]
+    logger.info(
+        "keep_none_endpoint=%s only_none_endpoint=%s",
+        _keep_none_endpoint(cfg), _only_none_endpoint(cfg),
+    )
+
     cert_path, key_path = _cert_and_key(cfg)
     if cert_path and key_path:
         await server.load_certificate(cert_path)
@@ -309,6 +410,8 @@ async def build_server(cfg: dict[str, Any]) -> Server:
     x509_paths = _x509_user_cert_paths(user_auth)
     user_manager = CombinedUserManager(
         allow_anonymous=user_auth.get("anonymous", True),
+        allow_username=user_auth.get("username", False),
+        allow_x509=user_auth.get("x509", False),
         users=users,
         x509_user_cert_paths=x509_paths,
         x509_user_name=user_auth.get("x509_user_name", "x509_user"),

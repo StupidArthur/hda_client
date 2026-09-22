@@ -27,10 +27,15 @@ LOG_FILENAME_DATE_FORMAT = "%Y%m%d"
 
 
 def _log_filename() -> str:
-    """生成当日日志文件名。"""
+    """生成当日日志文件名。
+
+    可用环境变量 UA_MOCK_LOG_SUFFIX 注入后缀（如 _48730），用于多端口
+    并发启动时隔离各自日志；未设置时保持原有 ua_mocker_YYYYMMDD.log。
+    """
     base_dir = get_executable_directory()
     date_str = datetime.now().strftime(LOG_FILENAME_DATE_FORMAT)
-    return os.path.join(base_dir, f"{LOG_FILENAME_PREFIX}_{date_str}.log")
+    suffix = os.environ.get("UA_MOCK_LOG_SUFFIX", "")
+    return os.path.join(base_dir, f"{LOG_FILENAME_PREFIX}_{date_str}{suffix}.log")
 
 
 def setup_logging(

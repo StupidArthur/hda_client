@@ -59,22 +59,32 @@ def load_user_cert(path: Path) -> tuple[bytes, x509.Certificate]:
 
 class CombinedUserManager:
     """
-    组合式用户管理：
-    - Anonymous：UserRole.Anonymous（可在配置中关闭）
+    组合式用户管理（三种身份各自有显式开关，互不串门）：
+    - Anonymous：UserRole.Anonymous
     - Username：匹配配置中的用户名/密码
     - X.509 User：direct 模式 —— 注册用户证书的精确 DER 匹配 + 有效期检查
+
+    三种方式各自独立开关（allow_anonymous / allow_username / allow_x509）。
+    早期版本只显式控制 anonymous，username 与 x509 靠"空 users 列表 / 空证书
+    列表"隐式拒绝——但 x509 证书路径是无条件加载的，导致"关闭了 x509 认证
+    的端口"只要白名单非空仍可能放行 X509IdentityToken。全拆（一端口一方式）
+    场景下这会破坏隔离，因此改为显式开关，由组态 user_auth 三个布尔位驱动。
     """
 
     def __init__(
         self,
         *,
         allow_anonymous: bool = True,
+        allow_username: bool = False,
+        allow_x509: bool = False,
         users: dict[str, str] | None = None,
         x509_user_cert_paths: list[Path] | None = None,
         x509_user_name: str = "x509_user",
         require_secured_channel: bool = True,
     ) -> None:
         self._allow_anonymous = allow_anonymous
+        self._allow_username = allow_username
+        self._allow_x509 = allow_x509
         self._users: dict[str, str] = users or {}
         self._x509_user_name = x509_user_name
         self._require_secured_channel = require_secured_channel
@@ -95,9 +105,15 @@ class CombinedUserManager:
         token_kind = getattr(iserver, "_last_user_token_kind", "unknown")
 
         if token_kind == "x509":
+            if not self._allow_x509:
+                logger.warning("X.509 User 认证未开放, 被拒绝")
+                return None
             return self._authorize_x509_user(certificate)
 
         if token_kind == "username":
+            if not self._allow_username:
+                logger.warning("UserName 认证未开放, 被拒绝")
+                return None
             expected = self._users.get(username)
             if expected is not None and expected == password:
                 return User(role=UserRole.User, name=username)

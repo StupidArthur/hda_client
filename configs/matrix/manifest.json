@@ -1,0 +1,938 @@
+{
+  "generated_at": "2026-09-22T13:47:46",
+  "source": "configs/matrix.yaml",
+  "base_port": 48730,
+  "port_step": 1,
+  "endpoint_count": 11,
+  "auth_count": 3,
+  "port_count": 33,
+  "negative_samples_per_port": 2,
+  "total_connections": 99,
+  "read_node": "ns=1;s=int32_ch_1",
+  "entries": [
+    {
+      "port": 48730,
+      "policy": "None",
+      "mode": "None",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "NoSecurity",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48730/ua_auth/",
+      "config": "configs/matrix/p48730_None_None_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "None",
+          "mode": "None",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48731,
+      "policy": "None",
+      "mode": "None",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "NoSecurity",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48731/ua_auth/",
+      "config": "configs/matrix/p48731_None_None_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "None",
+          "mode": "None",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48732,
+      "policy": "None",
+      "mode": "None",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "NoSecurity",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48732/ua_auth/",
+      "config": "configs/matrix/p48732_None_None_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "None",
+          "mode": "None",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48733,
+      "policy": "Basic128Rsa15",
+      "mode": "Sign",
+      "auth": "anon",
+      "deprecated": true,
+      "server_policy": "Basic128Rsa15_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48733/ua_auth/",
+      "config": "configs/matrix/p48733_Basic128Rsa15_Sign_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48734,
+      "policy": "Basic128Rsa15",
+      "mode": "Sign",
+      "auth": "username",
+      "deprecated": true,
+      "server_policy": "Basic128Rsa15_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48734/ua_auth/",
+      "config": "configs/matrix/p48734_Basic128Rsa15_Sign_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48735,
+      "policy": "Basic128Rsa15",
+      "mode": "Sign",
+      "auth": "x509",
+      "deprecated": true,
+      "server_policy": "Basic128Rsa15_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48735/ua_auth/",
+      "config": "configs/matrix/p48735_Basic128Rsa15_Sign_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48736,
+      "policy": "Basic128Rsa15",
+      "mode": "SignAndEncrypt",
+      "auth": "anon",
+      "deprecated": true,
+      "server_policy": "Basic128Rsa15_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48736/ua_auth/",
+      "config": "configs/matrix/p48736_Basic128Rsa15_SignAndEncrypt_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48737,
+      "policy": "Basic128Rsa15",
+      "mode": "SignAndEncrypt",
+      "auth": "username",
+      "deprecated": true,
+      "server_policy": "Basic128Rsa15_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48737/ua_auth/",
+      "config": "configs/matrix/p48737_Basic128Rsa15_SignAndEncrypt_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48738,
+      "policy": "Basic128Rsa15",
+      "mode": "SignAndEncrypt",
+      "auth": "x509",
+      "deprecated": true,
+      "server_policy": "Basic128Rsa15_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48738/ua_auth/",
+      "config": "configs/matrix/p48738_Basic128Rsa15_SignAndEncrypt_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic128Rsa15",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48739,
+      "policy": "Basic256",
+      "mode": "Sign",
+      "auth": "anon",
+      "deprecated": true,
+      "server_policy": "Basic256_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48739/ua_auth/",
+      "config": "configs/matrix/p48739_Basic256_Sign_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48740,
+      "policy": "Basic256",
+      "mode": "Sign",
+      "auth": "username",
+      "deprecated": true,
+      "server_policy": "Basic256_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48740/ua_auth/",
+      "config": "configs/matrix/p48740_Basic256_Sign_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48741,
+      "policy": "Basic256",
+      "mode": "Sign",
+      "auth": "x509",
+      "deprecated": true,
+      "server_policy": "Basic256_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48741/ua_auth/",
+      "config": "configs/matrix/p48741_Basic256_Sign_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48742,
+      "policy": "Basic256",
+      "mode": "SignAndEncrypt",
+      "auth": "anon",
+      "deprecated": true,
+      "server_policy": "Basic256_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48742/ua_auth/",
+      "config": "configs/matrix/p48742_Basic256_SignAndEncrypt_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256Sha256",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48743,
+      "policy": "Basic256",
+      "mode": "SignAndEncrypt",
+      "auth": "username",
+      "deprecated": true,
+      "server_policy": "Basic256_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48743/ua_auth/",
+      "config": "configs/matrix/p48743_Basic256_SignAndEncrypt_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256Sha256",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48744,
+      "policy": "Basic256",
+      "mode": "SignAndEncrypt",
+      "auth": "x509",
+      "deprecated": true,
+      "server_policy": "Basic256_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48744/ua_auth/",
+      "config": "configs/matrix/p48744_Basic256_SignAndEncrypt_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256Sha256",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48745,
+      "policy": "Basic256Sha256",
+      "mode": "Sign",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "Basic256Sha256_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48745/ua_auth/",
+      "config": "configs/matrix/p48745_Basic256Sha256_Sign_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256Sha256",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256Sha256",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48746,
+      "policy": "Basic256Sha256",
+      "mode": "Sign",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "Basic256Sha256_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48746/ua_auth/",
+      "config": "configs/matrix/p48746_Basic256Sha256_Sign_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256Sha256",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256Sha256",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48747,
+      "policy": "Basic256Sha256",
+      "mode": "Sign",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "Basic256Sha256_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48747/ua_auth/",
+      "config": "configs/matrix/p48747_Basic256Sha256_Sign_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256Sha256",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Basic256Sha256",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48748,
+      "policy": "Basic256Sha256",
+      "mode": "SignAndEncrypt",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "Basic256Sha256_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48748/ua_auth/",
+      "config": "configs/matrix/p48748_Basic256Sha256_SignAndEncrypt_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256Sha256",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48749,
+      "policy": "Basic256Sha256",
+      "mode": "SignAndEncrypt",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "Basic256Sha256_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48749/ua_auth/",
+      "config": "configs/matrix/p48749_Basic256Sha256_SignAndEncrypt_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256Sha256",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48750,
+      "policy": "Basic256Sha256",
+      "mode": "SignAndEncrypt",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "Basic256Sha256_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48750/ua_auth/",
+      "config": "configs/matrix/p48750_Basic256Sha256_SignAndEncrypt_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Basic256Sha256",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48751,
+      "policy": "Aes128Sha256RsaOaep",
+      "mode": "Sign",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "Aes128Sha256RsaOaep_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48751/ua_auth/",
+      "config": "configs/matrix/p48751_Aes128Sha256RsaOaep_Sign_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48752,
+      "policy": "Aes128Sha256RsaOaep",
+      "mode": "Sign",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "Aes128Sha256RsaOaep_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48752/ua_auth/",
+      "config": "configs/matrix/p48752_Aes128Sha256RsaOaep_Sign_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48753,
+      "policy": "Aes128Sha256RsaOaep",
+      "mode": "Sign",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "Aes128Sha256RsaOaep_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48753/ua_auth/",
+      "config": "configs/matrix/p48753_Aes128Sha256RsaOaep_Sign_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48754,
+      "policy": "Aes128Sha256RsaOaep",
+      "mode": "SignAndEncrypt",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "Aes128Sha256RsaOaep_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48754/ua_auth/",
+      "config": "configs/matrix/p48754_Aes128Sha256RsaOaep_SignAndEncrypt_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48755,
+      "policy": "Aes128Sha256RsaOaep",
+      "mode": "SignAndEncrypt",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "Aes128Sha256RsaOaep_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48755/ua_auth/",
+      "config": "configs/matrix/p48755_Aes128Sha256RsaOaep_SignAndEncrypt_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48756,
+      "policy": "Aes128Sha256RsaOaep",
+      "mode": "SignAndEncrypt",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "Aes128Sha256RsaOaep_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48756/ua_auth/",
+      "config": "configs/matrix/p48756_Aes128Sha256RsaOaep_SignAndEncrypt_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes128Sha256RsaOaep",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48757,
+      "policy": "Aes256Sha256RsaPss",
+      "mode": "Sign",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "Aes256Sha256RsaPss_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48757/ua_auth/",
+      "config": "configs/matrix/p48757_Aes256Sha256RsaPss_Sign_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "Sign",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48758,
+      "policy": "Aes256Sha256RsaPss",
+      "mode": "Sign",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "Aes256Sha256RsaPss_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48758/ua_auth/",
+      "config": "configs/matrix/p48758_Aes256Sha256RsaPss_Sign_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "Sign",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48759,
+      "policy": "Aes256Sha256RsaPss",
+      "mode": "Sign",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "Aes256Sha256RsaPss_Sign",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48759/ua_auth/",
+      "config": "configs/matrix/p48759_Aes256Sha256RsaPss_Sign_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "Sign",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48760,
+      "policy": "Aes256Sha256RsaPss",
+      "mode": "SignAndEncrypt",
+      "auth": "anon",
+      "deprecated": false,
+      "server_policy": "Aes256Sha256RsaPss_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48760/ua_auth/",
+      "config": "configs/matrix/p48760_Aes256Sha256RsaPss_SignAndEncrypt_anon.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "SignAndEncrypt",
+          "auth": "username",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "None",
+          "mode": "None",
+          "auth": "anon",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48761,
+      "policy": "Aes256Sha256RsaPss",
+      "mode": "SignAndEncrypt",
+      "auth": "username",
+      "deprecated": false,
+      "server_policy": "Aes256Sha256RsaPss_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48761/ua_auth/",
+      "config": "configs/matrix/p48761_Aes256Sha256RsaPss_SignAndEncrypt_username.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "SignAndEncrypt",
+          "auth": "x509",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "None",
+          "mode": "None",
+          "auth": "username",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    },
+    {
+      "port": 48762,
+      "policy": "Aes256Sha256RsaPss",
+      "mode": "SignAndEncrypt",
+      "auth": "x509",
+      "deprecated": false,
+      "server_policy": "Aes256Sha256RsaPss_SignAndEncrypt",
+      "endpoint_path": "/ua_auth/",
+      "url": "opc.tcp://127.0.0.1:48762/ua_auth/",
+      "config": "configs/matrix/p48762_Aes256Sha256RsaPss_SignAndEncrypt_x509.yaml",
+      "read_node": "ns=1;s=int32_ch_1",
+      "negatives": [
+        {
+          "policy": "Aes256Sha256RsaPss",
+          "mode": "SignAndEncrypt",
+          "auth": "anon",
+          "expect_fail_stage": "ActivateSession",
+          "reason": "该端口未开放此认证方式"
+        },
+        {
+          "policy": "None",
+          "mode": "None",
+          "auth": "x509",
+          "expect_fail_stage": "Endpoint selection",
+          "reason": "该端口未发布此端点组合"
+        }
+      ]
+    }
+  ]
+}
