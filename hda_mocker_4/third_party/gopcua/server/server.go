@@ -221,6 +221,21 @@ func (s *Server) Endpoints() []*ua.EndpointDescription {
 	return slices.Clone(s.endpoints)
 }
 
+func (s *Server) SessionInfos() []SessionInfo { return s.sb.Infos() }
+
+func (s *Server) ConnectionAddresses() []string {
+	s.cb.mu.RLock()
+	defer s.cb.mu.RUnlock()
+	out := make([]string, 0, len(s.cb.s))
+	for _, ch := range s.cb.s {
+		if ch != nil && ch.RemoteAddr() != nil {
+			out = append(out, ch.RemoteAddr().String())
+		}
+	}
+	slices.Sort(out)
+	return out
+}
+
 // Status returns the current server status.
 func (s *Server) Status() *ua.ServerStatusDataType {
 	status := new(ua.ServerStatusDataType)

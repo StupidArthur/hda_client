@@ -1,0 +1,6 @@
+/build/
+/frontend/node_modules/
+/frontend/package.json.md5
+/lan_diag_manager.json
+/lan_diag_history.jsonl
+/package-lock.json

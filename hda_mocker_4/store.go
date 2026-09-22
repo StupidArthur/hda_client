@@ -362,6 +362,17 @@ func (s *Store) lastBatch() int64 {
 	}
 	return 0
 }
+
+func (s *Store) timeRange(origin string) (time.Time, time.Time, error) {
+	var minTS, maxTS sql.NullInt64
+	if err := s.db.QueryRow(`SELECT min(ts),max(ts) FROM samples WHERE origin=?`, origin).Scan(&minTS, &maxTS); err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	if !minTS.Valid || !maxTS.Valid {
+		return time.Time{}, time.Time{}, nil
+	}
+	return time.UnixMicro(minTS.Int64).UTC(), time.UnixMicro(maxTS.Int64).UTC(), nil
+}
 func (s *Store) cleanup(retention int) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()

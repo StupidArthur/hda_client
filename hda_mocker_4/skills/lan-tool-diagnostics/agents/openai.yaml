@@ -1,0 +1,4 @@
+interface:
+  display_name: "LAN Tool Diagnostics"
+  short_description: "Add the lightweight LAN diagnostic protocol to tools"
+  default_prompt: "Implement the LAN tool diagnostic endpoints and health reporting for this application."

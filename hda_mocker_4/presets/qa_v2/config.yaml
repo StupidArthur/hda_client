@@ -3,6 +3,8 @@ server:
   ns: 3
   namespace: urn:hda:mocker4
   max_page_size: 5000
+diagnostic:
+  listen: 0.0.0.0:18981
 playback:
   files: {}
 history:

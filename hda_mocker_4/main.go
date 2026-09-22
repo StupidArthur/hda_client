@@ -15,7 +15,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 )
 
-const version = "v1.2.3"
+const version = "v1.3.1"
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -28,6 +28,13 @@ func main() {
 	if *showVersion {
 		fmt.Printf("HDA Mocker 4 %s\n", version)
 		return
+	}
+	applicationLogs, err := initializeApplicationLogs()
+	if err != nil {
+		log.Printf("persistent logging unavailable: %v", err)
+	} else {
+		defer applicationLogs.Close()
+		log.Printf("HDA Mocker 4 %s process started", version)
 	}
 	if *path != "" {
 		runCLI(*path)

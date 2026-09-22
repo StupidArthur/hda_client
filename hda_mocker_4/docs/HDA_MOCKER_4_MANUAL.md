@@ -27,6 +27,38 @@ HDA Mocker 4 在不传 `--config` 时启动 Windows 桌面控制台；传入 `--
 - 页面时间统一按 UTC 显示。质量码显示为 OPC UA `0xXXXXXXXX`，并附良好、不确定、异常或等待数据状态。
 - 纯 HDA 数据集没有 DA 当前值。概览在这种情况下明确以最新 HDA 样本统计质量，而非把所有位号误标为等待。
 
+## 独立诊断端口
+
+v1.3.0 起可在配置中启用独立 HTTP 诊断端口。它与 OPC UA 业务端口完全独立；同一台机器运行多个实例时，每个实例必须配置不同端口。省略或留空 `listen` 即不启动诊断服务。
+
+```yaml
+diagnostic:
+  listen: 0.0.0.0:4841
+```
+
+- `GET /v1/diag`：供管理工具轮询的平铺诊断信息。
+- `GET /v1/detail`：包含平铺的 `info` 和 `diag` 两个字段。
+- 诊断包含最近一轮 DA 播放与实时 HDA 入库时间、位号数、OPC UA TCP 连接数、Session 数和当前客户端明细。
+- `ok / warn / error` 由 Mocker 判断；无法连接由管理工具标记为 `offline`。当前没有 UA 客户端属于业务信息，不单独告警。
+
+诊断接口只读，不包含证书、私钥或其他凭据。生产防火墙只需向管理机开放配置的诊断端口。
+
+## 本地日志（v1.3.1）
+
+GUI、双击启动和 `--config` 后台启动都会自动在 EXE 同目录写入：
+
+```text
+logs/
+├── hda_mocker_4.log
+├── hda_mocker_4.log.1 ... hda_mocker_4.log.5
+└── hda_mocker_4.stderr.log
+```
+
+- `hda_mocker_4.log` 是运行日志，单文件达到 20 MB 后滚动，最多保留5份旧文件。
+- `hda_mocker_4.stderr.log` 接收标准错误和运行时崩溃信息，用于保留 panic 堆栈。
+- GUI 中仍显示最近500行内存日志；界面日志和文件日志来自同一输出，不影响后台落盘。
+- 交付目录必须允许运行账户创建和写入 `logs`。若无法写入，程序会继续尝试启动，但只能使用原有标准错误输出。
+
 ## 技术结构
 
 - Wails v2 包装 Go 服务核心，React 18 + TypeScript + Tailwind CSS v3 实现 UI。

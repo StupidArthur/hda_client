@@ -8,17 +8,21 @@ import (
 )
 
 type Playback struct {
-	store      *Store
-	files      []FileInfo
-	mu         sync.RWMutex
-	current    map[string]Sample
-	stop       chan struct{}
-	done       chan struct{}
-	batch      int64
-	notify     func(string)
-	started    bool
-	closed     bool
-	filesState map[string]PlaybackFileState
+	store            *Store
+	files            []FileInfo
+	mu               sync.RWMutex
+	current          map[string]Sample
+	stop             chan struct{}
+	done             chan struct{}
+	batch            int64
+	notify           func(string)
+	started          bool
+	closed           bool
+	filesState       map[string]PlaybackFileState
+	lastCommit       time.Time
+	lastDATags       int
+	lastHDATags      int
+	lastExpectedTags int
 }
 
 // PlaybackFileState is a cheap in-memory snapshot for the GUI. It is updated
@@ -88,6 +92,12 @@ func (p *Playback) Snapshot() []PlaybackFileState {
 	}
 	return out
 }
+
+func (p *Playback) DiagnosticSnapshot() (time.Time, int, int, int) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.lastCommit, p.lastDATags, p.lastHDATags, p.lastExpectedTags
+}
 func (p *Playback) loop() {
 	defer close(p.done)
 	p.round(p.files)
@@ -129,6 +139,10 @@ func (p *Playback) loop() {
 }
 func (p *Playback) round(files []FileInfo) {
 	timeNow := time.Now().UTC()
+	expectedTags := 0
+	for _, file := range files {
+		expectedTags += len(file.Tags)
+	}
 	vals := map[string]any{}
 	next := map[string]int64{}
 	shas := map[string]string{}
@@ -188,6 +202,10 @@ func (p *Playback) round(files []FileInfo) {
 	}
 	p.batch++
 	p.mu.Lock()
+	p.lastCommit = timeNow
+	p.lastDATags = len(written)
+	p.lastHDATags = len(written)
+	p.lastExpectedTags = expectedTags
 	notify := p.notify
 	for _, x := range written {
 		cell := vals[x.Name].(replayValue)

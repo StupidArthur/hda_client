@@ -1,8 +1,8 @@
 #include <windows.h>
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 1,2,1,0
- PRODUCTVERSION 1,2,1,0
+ FILEVERSION 1,3,1,0
+ PRODUCTVERSION 1,3,1,0
  FILEFLAGSMASK 0x3fL
  FILEFLAGS 0x0L
  FILEOS VOS_NT_WINDOWS32
@@ -15,11 +15,11 @@ BEGIN
     BEGIN
       VALUE "CompanyName", "HDA Mocker"
       VALUE "FileDescription", "HDA Mocker 4 Windows GUI"
-      VALUE "FileVersion", "1.2.1.0"
+      VALUE "FileVersion", "1.3.1.0"
       VALUE "InternalName", "hda_mocker_4"
-      VALUE "OriginalFilename", "hda_mocker_4_v1.2.1.exe"
+      VALUE "OriginalFilename", "hda_mocker_4_v1.3.1.exe"
       VALUE "ProductName", "HDA Mocker 4"
-      VALUE "ProductVersion", "1.2.1"
+      VALUE "ProductVersion", "1.3.1"
     END
   END
   BLOCK "VarFileInfo"

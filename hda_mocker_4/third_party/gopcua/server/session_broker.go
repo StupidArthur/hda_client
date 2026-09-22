@@ -17,8 +17,25 @@ type session struct {
 	AuthTokenID       *ua.NodeID
 	serverNonce       []byte
 	remoteCertificate []byte
+	RemoteAddress     string
+	ApplicationName   string
+	ApplicationURI    string
+	ProductURI        string
+	SessionName       string
+	CreatedAt         time.Time
+	ActivatedAt       time.Time
 
 	PublishRequests chan PubReq
+}
+
+type SessionInfo struct {
+	RemoteAddress   string
+	ApplicationName string
+	ApplicationURI  string
+	ProductURI      string
+	SessionName     string
+	CreatedAt       time.Time
+	ActivatedAt     time.Time
 }
 
 type sessionConfig struct {
@@ -46,6 +63,7 @@ func (sb *sessionBroker) NewSession() *session {
 		ID:              ua.NewGUIDNodeID(1, uuid.New().String()),
 		AuthTokenID:     ua.NewNumericNodeID(0, uint32(mrand.Int31())),
 		PublishRequests: make(chan PubReq, 100),
+		CreatedAt:       time.Now().UTC(),
 	}
 
 	sb.mu.Lock()
@@ -53,6 +71,20 @@ func (sb *sessionBroker) NewSession() *session {
 	sb.mu.Unlock()
 
 	return s
+}
+
+func (sb *sessionBroker) Infos() []SessionInfo {
+	sb.mu.Lock()
+	defer sb.mu.Unlock()
+	out := make([]SessionInfo, 0, len(sb.s))
+	for _, s := range sb.s {
+		out = append(out, SessionInfo{
+			RemoteAddress: s.RemoteAddress, ApplicationName: s.ApplicationName,
+			ApplicationURI: s.ApplicationURI, ProductURI: s.ProductURI,
+			SessionName: s.SessionName, CreatedAt: s.CreatedAt, ActivatedAt: s.ActivatedAt,
+		})
+	}
+	return out
 }
 
 func (sb *sessionBroker) Close(authToken *ua.NodeID) error {

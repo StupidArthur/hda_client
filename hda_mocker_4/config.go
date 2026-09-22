@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +26,9 @@ type Config struct {
 	History struct {
 		RetentionDays int `yaml:"retention_days"`
 	} `yaml:"history"`
+	Diagnostic struct {
+		Listen string `yaml:"listen"`
+	} `yaml:"diagnostic"`
 }
 
 func (c Config) playbackPeriod(name string) (time.Duration, bool) {
@@ -62,6 +66,11 @@ func loadConfig(path string) (Config, string, error) {
 	}
 	if c.History.RetentionDays < 0 {
 		return c, "", fmt.Errorf("history.retention_days must be >= 0")
+	}
+	if c.Diagnostic.Listen != "" {
+		if _, _, err := net.SplitHostPort(c.Diagnostic.Listen); err != nil {
+			return c, "", fmt.Errorf("diagnostic.listen must be host:port: %w", err)
+		}
 	}
 	return c, filepath.Dir(path), nil
 }

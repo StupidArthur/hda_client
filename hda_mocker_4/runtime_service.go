@@ -90,6 +90,7 @@ type runtimeInstance struct {
 	store       *Store
 	playback    *Playback
 	server      *mockServer
+	diagnostic  *DiagnosticServer
 	cleanupStop chan struct{}
 	closeOnce   sync.Once
 }
@@ -100,6 +101,9 @@ func (r *runtimeInstance) Close() {
 	}
 	r.closeOnce.Do(func() {
 		close(r.cleanupStop)
+		if r.diagnostic != nil {
+			r.diagnostic.Close()
+		}
 		if r.server != nil {
 			r.server.close()
 		}
@@ -334,6 +338,11 @@ func (c *RuntimeController) start(ctx context.Context, configPath string, done c
 		return
 	}
 	if err = mock.Start(context.Background()); err != nil {
+		c.finishStart(ctx, nil, err)
+		return
+	}
+	runtime.diagnostic = newDiagnosticServer(cfg.Diagnostic.Listen, c.diagnosticMaps)
+	if err = runtime.diagnostic.Start(); err != nil {
 		c.finishStart(ctx, nil, err)
 		return
 	}

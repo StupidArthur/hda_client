@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"log"
-	"os"
 	"sync"
 	"time"
 
@@ -44,7 +43,7 @@ func (b *logBuffer) Lines() []string {
 
 func NewApp() *App {
 	logs := &logBuffer{}
-	log.SetOutput(io.MultiWriter(os.Stderr, logs))
+	log.SetOutput(io.MultiWriter(applicationLogOutput(), logs))
 	return &App{controller: NewRuntimeController(), logs: logs}
 }
 

@@ -38,6 +38,17 @@ func (s *SessionService) CreateSession(sc *uasc.SecureChannel, r ua.Request, req
 
 	// New session
 	sess := s.srv.sb.NewSession()
+	if sc != nil && sc.RemoteAddr() != nil {
+		sess.RemoteAddress = sc.RemoteAddr().String()
+	}
+	sess.SessionName = req.SessionName
+	if req.ClientDescription != nil {
+		sess.ApplicationURI = req.ClientDescription.ApplicationURI
+		sess.ProductURI = req.ClientDescription.ProductURI
+		if req.ClientDescription.ApplicationName != nil {
+			sess.ApplicationName = req.ClientDescription.ApplicationName.Text
+		}
+	}
 
 	// Ensure session timeout is reasonable
 	sess.cfg.sessionTimeout = time.Duration(req.RequestedSessionTimeout) * time.Millisecond
@@ -51,6 +62,7 @@ func (s *SessionService) CreateSession(sc *uasc.SecureChannel, r ua.Request, req
 		return nil, ua.StatusBadInternalError
 	}
 	sess.serverNonce = nonce
+	sess.ActivatedAt = time.Now().UTC()
 	sess.remoteCertificate = req.ClientCertificate
 
 	sig, alg, err := sc.NewSessionSignature(req.ClientCertificate, req.ClientNonce)
