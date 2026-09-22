@@ -104,7 +104,9 @@ async def _fetch_endpoints(url: str) -> list:
 
 def _port_label(entry: dict) -> str:
     dep = " (废弃)" if entry["deprecated"] else ""
-    return f"p{entry['port']} {entry['policy']}/{entry['mode']}{dep} {entry['auth']}"
+    val = entry.get("validation", "trusted")
+    vtag = "" if val == "trusted" else f" [{val}]"
+    return f"p{entry['port']} {entry['policy']}/{entry['mode']}{dep} {entry['auth']}{vtag}"
 
 
 # ---------------------------------------------------------------------------
@@ -237,6 +239,12 @@ async def main() -> int:
     print("UA Auth Lab 全拆矩阵测试（方案 A）\n")
     print(f"  端口数      : {manifest['port_count']}")
     print(f"  端点组合    : {manifest['endpoint_count']} × 认证 {manifest['auth_count']}")
+    print(f"  核心端口    : {manifest.get('core_port_count', '-')}（应用证书 trusted 严格）")
+    if manifest.get("open_port_count"):
+        print(
+            f"  开放端口    : {manifest['open_port_count']}"
+            f"（应用证书 {'/'.join(manifest.get('open_validation_modes', []))}，不查信任）"
+        )
     print(f"  每端口负向  : {neg_count}")
     print(f"  预计连接    : {manifest['total_connections']}")
     print("=" * 78)

@@ -263,30 +263,79 @@ def _load_trust(trust_dir: Path) -> TrustStore:
     return trust_store
 
 
-async def _setup_certificate_validator(server: Server, cfg: dict[str, Any]) -> None:
-    """配置服务端对客户端 Application Certificate 的校验。"""
+# 客户端 Application Certificate 校验模式：
+#   trusted = 时间/URI/KeyUsage/EKU + 必须受信（只认 trust_store）
+#   basic   = 时间/URI/KeyUsage/EKU，但不查信任目录
+#   none    = 完全不校验（不挂校验器；asyncua 默认 certificate_validator=None）
+CLIENT_CERT_VALIDATION_MODES = ("trusted", "basic", "none")
+
+
+def _client_cert_validation_mode(cfg: dict[str, Any]) -> str:
+    """取客户端应用证书校验模式；缺省 trusted（与历史行为完全一致）。"""
     security = cfg.get("security")
+    raw = security.get("client_cert_validation") if isinstance(security, dict) else None
+    if raw is None:
+        raw = cfg.get("client_cert_validation")
+    mode = str(raw or "trusted").strip().lower()
+    if mode not in CLIENT_CERT_VALIDATION_MODES:
+        raise ValueError(
+            f"不支持的 client_cert_validation: {mode!r}，可选: {CLIENT_CERT_VALIDATION_MODES}"
+        )
+    return mode
+
+
+async def _setup_certificate_validator(server: Server, cfg: dict[str, Any]) -> None:
+    """配置服务端对客户端 Application Certificate 的校验。
+
+    行为由 client_cert_validation 决定（见 CLIENT_CERT_VALIDATION_MODES）。
+    注意：本校验只作用于**应用证书**（OpenSecureChannel/CreateSession 层）。
+    X.509 **用户**认证走 CombinedUserManager 的 DER 白名单，是另一条链路，
+    不受本项影响。
+    """
+    mode = _client_cert_validation_mode(cfg)
+    if mode == "none":
+        logger.warning(
+            "客户端应用证书校验: none —— 不挂校验器，任意客户端（含自签/过期）均可接入"
+        )
+        return
+
+    security = cfg.get("security")
+    trust_dir: Path | None = None
     if isinstance(security, dict) and security.get("trust_store"):
         trust_dir = Path(security["trust_store"])
     elif cfg.get("trust_store"):
         trust_dir = Path(cfg["trust_store"])
-    else:
+
+    trust_store: TrustStore | None = None
+    if trust_dir is not None:
+        if not trust_dir.is_dir():
+            raise ValueError(f"trust_store 目录不存在: {trust_dir}")
+        trust_store = _load_trust(trust_dir)
+        await trust_store.load()
+    elif mode == "trusted":
+        # 历史行为：没配 trust_store 且要严格校验 -> 干脆不校验（保留原日志）
         logger.info("未配置 trust_store, 不校验客户端证书")
         return
 
-    if not trust_dir.is_dir():
-        raise ValueError(f"trust_store 目录不存在: {trust_dir}")
+    if mode == "basic":
+        options = (
+            CertificateValidatorOptions.BASIC_VALIDATION
+            | CertificateValidatorOptions.PEER_CLIENT
+        )
+    else:
+        # TRUSTED_VALIDATION | PEER_CLIENT：检查时间范围 / URI / KeyUsage /
+        # ExtendedKeyUsage / 是否受信 / 是否吊销，且角色为客户端。
+        options = (
+            CertificateValidatorOptions.TRUSTED_VALIDATION
+            | CertificateValidatorOptions.PEER_CLIENT
+        )
 
-    trust_store = _load_trust(trust_dir)
-    await trust_store.load()
-    # TRUSTED_VALIDATION | PEER_CLIENT：检查时间范围 / URI / KeyUsage /
-    # ExtendedKeyUsage / 是否受信 / 是否吊销，且角色为客户端。
-    validator = CertificateValidator(
-        CertificateValidatorOptions.TRUSTED_VALIDATION | CertificateValidatorOptions.PEER_CLIENT,
-        trust_store,
-    )
+    validator = CertificateValidator(options, trust_store)
     server.set_certificate_validator(validator)
-    logger.info("客户端证书校验已启用, 受信目录: %s", trust_dir)
+    logger.info(
+        "客户端证书校验已启用, 模式=%s, 受信目录=%s",
+        mode, trust_dir if trust_dir is not None else "(无)",
+    )
 
 
 def _cert_and_key(cfg: dict[str, Any]) -> tuple[str | None, str | None]:

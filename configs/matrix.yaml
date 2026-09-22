@@ -54,6 +54,12 @@ security:
   application_certificate:
     cert: "../../test_material/certs/server_cert.pem"
     private_key: "../../test_material/certs/server_key.pem"
+  # 客户端 Application Certificate 校验模式（详见文件末尾 open_ports 说明）：
+  #   trusted = 校验时间/URI/KeyUsage/EKU + 必须受信（只认 trust_store）
+  #   basic   = 校验时间/URI/KeyUsage/EKU，但不查信任目录
+  #   none    = 完全不校验
+  # 核心 33 端口固定 trusted；开放端口块由 open_ports 覆盖为 basic / none。
+  client_cert_validation: "trusted"
 
 # ---- 端点组合（11 个，覆盖 OPC UA Part 7 全部合法组合）--------------------
 # policy 取值须同时被服务端 POLICY_NAME_TO_TYPE 与客户端 POLICY_CLASSES 支持，
@@ -102,3 +108,23 @@ nodes:
   - {name: "double_wr_", type: Double,   count: 2, default: 0.0,  change: false, writable: true}
   - {name: "string_ch_", type: String,   count: 2, change: true,  writable: false}
   - {name: "bool_wr_",   type: Boolean,  count: 2, default: false, change: false, writable: true}
+
+# ---- 开放接入端口块（客户端应用证书不查信任）------------------------------
+# 目的：让"任意客户端"（UaExpert / 产品端 data-hub / 任何自签证书）能远程接入
+#       验证，而不必先把它的证书加进 trust_store。
+#
+# 现有 33 个"核心端口"固定 client_cert_validation=trusted（严格：只认
+# trust_store 里的 CA/证书）。本块额外生成宽松校验端口，核心端口一个不动。
+#
+#   basic = 不查信任目录，但仍校验：证书有效期 + ApplicationUri 与证书 SAN 一致
+#   none  = 完全不校验客户端应用证书（任何证书、含过期证书，都能建 Session）
+#
+# 只铺 anon / username：x509 认证的用户证书还要过 DER 白名单，任意客户端即使
+# 过了应用证书这一关也照样进不去，铺了没意义。
+#
+# 端口编排：validation 优先（basic 块在前、none 块在后），块内按 端点 × 认证 排。
+# 规模 = 11 端点 × 2 认证 × len(validations) = 44（48770..48813）。
+open_ports:
+  base_port: 48770
+  validations: ["basic", "none"]
+  auths: ["anon", "username"]

@@ -10,10 +10,12 @@ UA Auth Lab —— 认证矩阵客户端（manifest 驱动）。
 
 用法:
 
-    python client/auth_matrix_client.py                       # 33 端口正向
+    python client/auth_matrix_client.py                       # 全部端口正向
     python client/auth_matrix_client.py --only 48730,48732     # 指定端口
     python client/auth_matrix_client.py --negative             # 正向 + 负向抽样
     python client/auth_matrix_client.py --auth x509            # 只跑某认证方式
+    python client/auth_matrix_client.py --group open           # 只跑开放接入块(不查信任)
+    python client/auth_matrix_client.py --validation none      # 只跑完全不校验的端口
 
 退出码：全部 PASS 返回 0，否则返回 1。
 """
@@ -90,7 +92,9 @@ async def probe(url: str, policy: str, mode: str, auth: str, node: str, args) ->
 
 def _label(e: dict) -> str:
     dep = " (废弃)" if e["deprecated"] else ""
-    return f"p{e['port']} {e['policy']}/{e['mode']}{dep} {e['auth']}"
+    val = e.get("validation", "trusted")
+    vtag = "" if val == "trusted" else f" [{val}]"
+    return f"p{e['port']} {e['policy']}/{e['mode']}{dep} {e['auth']}{vtag}"
 
 
 async def run(args) -> int:
@@ -108,6 +112,10 @@ async def run(args) -> int:
         entries = [e for e in entries if e["auth"] == args.auth]
     if args.policy:
         entries = [e for e in entries if e["policy"] == args.policy]
+    if args.validation:
+        entries = [e for e in entries if e.get("validation", "trusted") == args.validation]
+    if args.group:
+        entries = [e for e in entries if e.get("group", "core") == args.group]
     if not entries:
         print("[FAIL] 过滤后无端口", file=sys.stderr)
         return 1
@@ -167,6 +175,10 @@ def main() -> int:
     parser.add_argument("--auth", default=None, choices=["anon", "username", "x509"],
                         help="只跑某种认证方式")
     parser.add_argument("--policy", default=None, help="只跑某 SecurityPolicy")
+    parser.add_argument("--validation", default=None, choices=["trusted", "basic", "none"],
+                        help="只跑某种客户端应用证书校验模式")
+    parser.add_argument("--group", default=None, choices=["core", "open"],
+                        help="只跑核心严格块(core)或开放接入块(open)")
     parser.add_argument("--negative", action="store_true", help="同时跑每端口负向抽样")
     parser.add_argument("--app-cert", default=str(DEFAULT_APP_CERT))
     parser.add_argument("--app-key", default=str(DEFAULT_APP_KEY))

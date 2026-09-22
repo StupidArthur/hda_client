@@ -1,6 +1,7 @@
 # UA Auth Lab 全拆矩阵端口（自动生成，勿手改）
 # 端口: 48743  端点: Basic256 / SignAndEncrypt  (deprecated)
 # 认证: username（该端口只开放这一种）
+# 应用证书: 严格（必须受信）
 # 源: matrix.yaml  重新生成: python tools/gen_matrix_configs.py
 # 启动: python main.py configs/matrix/p48743_Basic256_SignAndEncrypt_username.yaml
 
@@ -18,6 +19,7 @@ security:
   application_certificate:
     cert: ../../test_material/certs/server_cert.pem
     private_key: ../../test_material/certs/server_key.pem
+  client_cert_validation: trusted
   policies:
   - Basic256_SignAndEncrypt
   discovery: true

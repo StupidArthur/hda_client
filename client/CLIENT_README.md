@@ -17,6 +17,26 @@ For **X.509 user authentication** you additionally need a **separate** user
 certificate/key pair (see `../README.md` §1 — Application Certificate and
 User Certificate are two different things and must not be mixed).
 
+## Application certificate trust depends on the port
+
+Client-certificate validation strength is per port
+(`security.client_cert_validation` in each port config):
+
+| Mode | Ports | What the server checks at CreateSession |
+|---|---|---|
+| `trusted` | core block `48730`–`48762` | validity + URI + KeyUsage/EKU + **must be issued by the test CA** (`trust/`) |
+| `basic` | open block `48770`–`48791` | validity + ApplicationUri match; **trust is NOT checked** |
+| `none` | open block `48792`–`48813` | **nothing** — self-signed, expired and URI-mismatched certificates are all accepted |
+
+So a third-party client whose certificate is not in the test CA (Unified
+Automation UaExpert, a product data-hub, any self-signed certificate) should
+connect to a `basic` or `none` port. On `basic` the client's `application_uri`
+must still match the URI in its own certificate's SAN.
+
+The `basic` / `none` ports only offer Anonymous and UserName authentication.
+X.509 **user** authentication still requires a whitelisted user certificate
+(see below), so it is not offered there.
+
 ## Minimal asyncua configuration
 
 ```python

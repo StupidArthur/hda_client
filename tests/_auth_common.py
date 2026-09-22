@@ -44,12 +44,16 @@ def pick_port(
     auth: str | None = None,
     policy: str | None = None,
     mode: str | None = None,
+    validation: str | None = None,
+    group: str | None = None,
     *,
     require_encrypted: bool = False,
 ) -> dict:
     """从 manifest 挑一个满足条件的端口条目。
 
     require_encrypted=True 时排除 None/None 端点（需要加密通道的用例用）。
+    validation: trusted / basic / none（客户端应用证书校验模式）。
+    group:      core（核心严格块）/ open（开放接入块）。
     找不到会直接 SystemExit，避免测试"悄悄用了错误端口"。
     """
     manifest = load_manifest()
@@ -60,12 +64,17 @@ def pick_port(
             continue
         if mode is not None and e["mode"] != mode:
             continue
+        if validation is not None and e.get("validation") != validation:
+            continue
+        if group is not None and e.get("group") != group:
+            continue
         if require_encrypted and e["policy"] == "None":
             continue
         return e
     raise SystemExit(
         "manifest 中找不到满足条件的端口: "
-        f"auth={auth} policy={policy} mode={mode} encrypted={require_encrypted}"
+        f"auth={auth} policy={policy} mode={mode} "
+        f"validation={validation} group={group} encrypted={require_encrypted}"
     )
 CERTS = BASE / "test_material" / "certs"
 SERVER_CERT = CERTS / "server_cert.pem"

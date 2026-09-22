@@ -45,6 +45,9 @@ from conn import MODES, POLICY_CLASSES  # noqa: E402
 
 AUTH_NAMES = ("anon", "username", "x509")
 
+# 客户端应用证书校验模式（与服务端 server_builder.CLIENT_CERT_VALIDATION_MODES 对应）
+VALIDATION_MODES = ("trusted", "basic", "none")
+
 # 端点组合的"合法模式"约束：policy=None 只能配 mode=None；
 # 加密 policy 只能配 Sign / SignAndEncrypt。
 _VALID_MODES_FOR_POLICY = {
@@ -178,10 +181,82 @@ def validate(matrix: dict[str, Any]) -> list[dict[str, Any]]:
                 f"当前开放: {enabled}（一端口一方式）"
             )
 
+    # 开放端口块（可选）
+    _auth_names = [a["name"] for a in auths if isinstance(a, dict) and "name" in a]
+    _core_ports: set[int] = set()
+    if isinstance(base_port, int) and isinstance(step, int) and step >= 1:
+        _core_ports = {
+            base_port + i * step for i in range(len(normalized) * len(_auth_names))
+        }
+    _validate_open_ports(matrix, errors, normalized, _auth_names, _core_ports, step)
+
     if errors:
         raise MatrixError("矩阵定义校验失败:\n  - " + "\n  - ".join(errors))
 
     return normalized
+
+
+def _validate_open_ports(
+    matrix: dict[str, Any],
+    errors: list[str],
+    endpoints: list[dict[str, Any]],
+    auth_names: list[str],
+    core_ports: set[int],
+    step: int,
+) -> None:
+    """校验可选的 open_ports 块（宽松校验端口）。"""
+    op = matrix.get("open_ports")
+    if op is None:
+        return
+    if not isinstance(op, dict):
+        errors.append(f"open_ports 必须是映射，得到: {op!r}")
+        return
+
+    base = op.get("base_port")
+    if not isinstance(base, int) or not (1 <= base <= 65535):
+        errors.append(f"open_ports.base_port 必须是 1..65535 的整数，得到: {base!r}")
+        base = None
+
+    vals = op.get("validations", ["basic", "none"])
+    if not isinstance(vals, list) or not vals:
+        errors.append("open_ports.validations 必须是非空列表")
+        vals = []
+    for v in vals:
+        if v not in VALIDATION_MODES:
+            errors.append(f"open_ports.validations 含非法值 {v!r}，可选: {VALIDATION_MODES}")
+    if "trusted" in vals:
+        errors.append(
+            "open_ports.validations 不应包含 'trusted'（核心端口已覆盖严格模式，"
+            "开放块只放 basic / none）"
+        )
+
+    op_auths = op.get("auths", ["anon", "username"])
+    if not isinstance(op_auths, list) or not op_auths:
+        errors.append("open_ports.auths 必须是非空列表")
+        op_auths = []
+    for a in op_auths:
+        if a not in auth_names:
+            errors.append(f"open_ports.auths 含未定义认证方式 {a!r}，可选: {auth_names}")
+
+    # 端口重叠检查
+    if base is not None and vals and op_auths:
+        n = len(endpoints) * len([a for a in op_auths if a in auth_names]) * len(vals)
+        span = {base + i * step for i in range(n)}
+        clash = sorted(span & core_ports)
+        if clash:
+            errors.append(f"open_ports 与核心端口重叠: {clash}")
+
+
+def open_ports_values(matrix: dict[str, Any]) -> dict[str, Any] | None:
+    """取 open_ports 规范化值（validate 已校验；这里再兜一层默认）。"""
+    op = matrix.get("open_ports")
+    if not isinstance(op, dict):
+        return None
+    return {
+        "base_port": int(op.get("base_port", 0)),
+        "validations": [str(v) for v in op.get("validations", ["basic", "none"])],
+        "auths": [str(a) for a in op.get("auths", ["anon", "username"])],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -194,11 +269,14 @@ def _safe(s: str) -> str:
 
 
 def _build_config(matrix: dict[str, Any], ep: dict[str, Any], auth: dict[str, Any],
-                  port: int) -> dict[str, Any]:
+                  port: int, validation: str = "trusted") -> dict[str, Any]:
     """构造单个端口的组态字典（新版结构）。"""
+    if validation not in VALIDATION_MODES:
+        raise MatrixError(f"非法 client_cert_validation: {validation!r}")
     is_none = ep["policy"] == "None" and ep["mode"] == "None"
 
     security: dict[str, Any] = dict(matrix["security"])
+    security["client_cert_validation"] = validation
     security["policies"] = [ep["server_policy"]]
 
     # "None/None 且开放 x509 / username" 需要额外注入一个带签名(和加密)能力的
@@ -236,7 +314,10 @@ def _build_config(matrix: dict[str, Any], ep: dict[str, Any], auth: dict[str, An
         security["require_secured_session"] = True
 
     cfg: dict[str, Any] = {
-        "scenario": f"matrix_{_safe(ep['policy'])}_{_safe(ep['mode'])}_{auth['name']}",
+        "scenario": (
+            f"matrix_{_safe(ep['policy'])}_{_safe(ep['mode'])}_{auth['name']}"
+            + (f"_{validation}" if validation != "trusted" else "")
+        ),
         "server": "0.0.0.0",
         "port": port,
         "endpoint_path": matrix.get("endpoint_path", "/ua_auth/"),
@@ -320,62 +401,93 @@ def generate(matrix_path: Path, out_dir: Path) -> dict[str, Any]:
 
     entries: list[dict[str, Any]] = []
     used_ports: set[int] = set()
-    port = base_port
 
-    for ep in endpoints:
-        for auth in auths:
-            if port in used_ports:
-                raise MatrixError(f"端口冲突: {port}")
-            if port > 65535:
-                raise MatrixError(f"端口溢出: {port}")
-            used_ports.add(port)
+    def emit(ep: dict[str, Any], auth: dict[str, Any], port: int,
+             validation: str, group: str) -> None:
+        """落盘一个端口组态 + 追加一条清单条目。"""
+        if port in used_ports:
+            raise MatrixError(f"端口冲突: {port}")
+        if port > 65535:
+            raise MatrixError(f"端口溢出: {port}")
+        used_ports.add(port)
 
-            cfg = _build_config(matrix, ep, auth, port)
-            fname = (
-                f"p{port}_{_safe(ep['policy'])}_{_safe(ep['mode'])}_{auth['name']}.yaml"
-            )
-            header = (
-                f"# UA Auth Lab 全拆矩阵端口（自动生成，勿手改）\n"
-                f"# 端口: {port}  端点: {ep['policy']} / {ep['mode']}"
-                f"{'  (deprecated)' if ep['deprecated'] else ''}\n"
-                f"# 认证: {auth['name']}（该端口只开放这一种）\n"
-                f"# 源: {matrix_path.name}  重新生成: python tools/gen_matrix_configs.py\n"
-                f"# 启动: python main.py configs/matrix/{fname}\n"
-                f"\n"
-            )
-            (out_dir / fname).write_text(_render_yaml(cfg, header), encoding="utf-8")
+        cfg = _build_config(matrix, ep, auth, port, validation)
+        suffix = f"_{validation}" if validation != "trusted" else ""
+        fname = (
+            f"p{port}_{_safe(ep['policy'])}_{_safe(ep['mode'])}"
+            f"_{auth['name']}{suffix}.yaml"
+        )
+        mode_note = {
+            "trusted": "应用证书: 严格（必须受信）",
+            "basic": "应用证书: 宽松（不查信任，仍查有效期/URI）",
+            "none": "应用证书: 不校验（任意客户端均可接入）",
+        }[validation]
+        header = (
+            f"# UA Auth Lab 全拆矩阵端口（自动生成，勿手改）\n"
+            f"# 端口: {port}  端点: {ep['policy']} / {ep['mode']}"
+            f"{'  (deprecated)' if ep['deprecated'] else ''}\n"
+            f"# 认证: {auth['name']}（该端口只开放这一种）\n"
+            f"# {mode_note}\n"
+            f"# 源: {matrix_path.name}  重新生成: python tools/gen_matrix_configs.py\n"
+            f"# 启动: python main.py configs/matrix/{fname}\n"
+            f"\n"
+        )
+        (out_dir / fname).write_text(_render_yaml(cfg, header), encoding="utf-8")
 
-            target = {
+        target = {
+            "port": port,
+            "policy": ep["policy"],
+            "mode": ep["mode"],
+            "auth": auth["name"],
+        }
+        negs = []
+        if neg_count >= 1:
+            negs.append(_neg_sample(target, matrix, endpoints, auths, "auth"))
+        if neg_count >= 2:
+            negs.append(_neg_sample(target, matrix, endpoints, auths, "endpoint"))
+
+        entries.append(
+            {
                 "port": port,
+                "group": group,
+                "validation": validation,
                 "policy": ep["policy"],
                 "mode": ep["mode"],
                 "auth": auth["name"],
+                "deprecated": ep["deprecated"],
+                "server_policy": ep["server_policy"],
+                "endpoint_path": matrix.get("endpoint_path", "/ua_auth/"),
+                "url": (
+                    f"opc.tcp://{client_host}:{port}"
+                    f"{matrix.get('endpoint_path', '/ua_auth/')}"
+                ),
+                "config": f"configs/matrix/{fname}",
+                "read_node": matrix.get("read_node", "ns=1;s=int32_ch_1"),
+                "negatives": negs,
             }
-            negs = []
-            if neg_count >= 1:
-                negs.append(_neg_sample(target, matrix, endpoints, auths, "auth"))
-            if neg_count >= 2:
-                negs.append(_neg_sample(target, matrix, endpoints, auths, "endpoint"))
+        )
 
-            entries.append(
-                {
-                    "port": port,
-                    "policy": ep["policy"],
-                    "mode": ep["mode"],
-                    "auth": auth["name"],
-                    "deprecated": ep["deprecated"],
-                    "server_policy": ep["server_policy"],
-                    "endpoint_path": matrix.get("endpoint_path", "/ua_auth/"),
-                    "url": (
-                        f"opc.tcp://{client_host}:{port}"
-                        f"{matrix.get('endpoint_path', '/ua_auth/')}"
-                    ),
-                    "config": f"configs/matrix/{fname}",
-                    "read_node": matrix.get("read_node", "ns=1;s=int32_ch_1"),
-                    "negatives": negs,
-                }
-            )
-            port += step
+    # ---- 核心端口块（trusted，严格校验）-----------------------------------
+    core_count = 0
+    for ep in endpoints:
+        for auth in auths:
+            emit(ep, auth, base_port + core_count * step, "trusted", "core")
+            core_count += 1
+
+    # ---- 开放接入端口块（basic / none，不查信任）--------------------------
+    # 编排：validation 优先（basic 块在前、none 块在后），块内按 端点 × 认证。
+    open_block = open_ports_values(matrix)
+    open_count = 0
+    open_base: int | None = None
+    if open_block:
+        open_base = open_block["base_port"]
+        for validation in open_block["validations"]:
+            for ep in endpoints:
+                for auth in auths:
+                    if auth["name"] not in open_block["auths"]:
+                        continue
+                    emit(ep, auth, open_base + open_count * step, validation, "open")
+                    open_count += 1
 
     manifest = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -385,6 +497,11 @@ def generate(matrix_path: Path, out_dir: Path) -> dict[str, Any]:
         "port_step": step,
         "endpoint_count": len(endpoints),
         "auth_count": len(auths),
+        "core_port_count": core_count,
+        "open_port_count": open_count,
+        "open_base_port": open_base,
+        "open_validation_modes": open_block["validations"] if open_block else [],
+        "open_auths": open_block["auths"] if open_block else [],
         "port_count": len(entries),
         "negative_samples_per_port": neg_count,
         "total_connections": len(entries) * (1 + neg_count),
@@ -414,6 +531,13 @@ def main() -> int:
 
     print(f"生成端口配置: {manifest['port_count']} 个")
     print(f"  端点组合 {manifest['endpoint_count']} × 认证方式 {manifest['auth_count']}")
+    print(f"  核心端口 {manifest['core_port_count']} 个（应用证书: trusted 严格）")
+    if manifest["open_port_count"]:
+        print(
+            f"  开放端口 {manifest['open_port_count']} 个"
+            f"（应用证书: {'/'.join(manifest['open_validation_modes'])}，不查信任）"
+            f"  起始 {manifest['open_base_port']}"
+        )
     print(f"  端口 {manifest['base_port']} 起，步长 {manifest['port_step']}")
     print(f"  每端口负向抽样 {manifest['negative_samples_per_port']} 条")
     print(f"  预计连接次数: {manifest['total_connections']}")
