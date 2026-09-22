@@ -1,0 +1,108 @@
+# UA Auth Lab - All authentication methods enabled
+#
+#   opc.tcp://0.0.0.0:48630/ua_auth/
+#
+# 本场景用于「OPC UA 认证方式验证台」的主链路：
+#   * 同一端点同时开放三种 UserIdentityToken：
+#       - Anonymous
+#       - UserName   (test / test)
+#       - X.509 User (direct 白名单)
+#   * 发布 3 种 SecurityPolicy × Sign/SignAndEncrypt 共 6 个安全端点
+#   * 另发布一个 None/None 的 discovery-only 端点（仅 GetEndpoints / FindServers）
+#
+# Application Certificate 链路：服务端证书由 Test CA 签发，服务端信任存储
+# 内含 Test CA，因此任何由该 CA 签发的客户端 Application 证书都受信。
+#
+# User X.509 链路：direct 模式 —— 精确 DER 白名单 + 有效期检查。
+#
+# 生成 PKI:
+#   python test_material/gen_certs.py
+#
+# 启动:
+#   python main.py configs/all_auth.yaml
+#
+# 客户端矩阵:
+#   python client/auth_matrix_client.py --url opc.tcp://127.0.0.1:48630/ua_auth/
+#
+# 测试:
+#   python tests/auth_matrix_tests.py
+
+scenario: all_auth
+
+server: "0.0.0.0"
+port: 48630
+endpoint_path: "/ua_auth/"
+cycle: 1000
+namespace_index: 1
+
+application:
+  name: "UA Auth Lab (all authentication methods)"
+  uri: "urn:ua-auth-lab:server"
+
+security:
+  policies:
+    - Basic256Sha256_Sign
+    - Basic256Sha256_SignAndEncrypt
+    - Aes128Sha256RsaOaep_Sign
+    - Aes128Sha256RsaOaep_SignAndEncrypt
+    - Aes256Sha256RsaPss_Sign
+    - Aes256Sha256RsaPss_SignAndEncrypt
+  # discovery-only None 端点：unsecured GetEndpoints / FindServers 可用，
+  # 但 None 通道上的 Session 会被拒绝（require_secured_session: true）。
+  discovery: true
+  require_secured_session: true
+  application_certificate:
+    cert: "../test_material/certs/server_cert.pem"
+    private_key: "../test_material/certs/server_key.pem"
+  trust_store: "../test_material/certs/trust"
+
+user_auth:
+  # 三种用户认证方式全部开放。
+  anonymous: true
+  username: true
+  users:
+    - username: "test"
+      password: "test"
+  x509: true
+  x509_validation: direct
+  # direct 白名单：user_cert.pem 正常通过；
+  # user_expired_cert.pem 在白名单但已过期 -> 有效期检查拒绝（负向材料）。
+  x509_user_cert:
+    - "../test_material/certs/user_cert.pem"
+    - "../test_material/certs/user_expired_cert.pem"
+  x509_user_name: "x509_user"
+
+nodes:
+  - name: "int32_ch_"
+    type: Int32
+    count: 2
+    change: true
+    writable: false
+  - name: "int32_wr_"
+    type: Int32
+    count: 2
+    default: 0
+    change: false
+    writable: true
+  - name: "double_ch_"
+    type: Double
+    count: 2
+    change: true
+    writable: false
+  - name: "double_wr_"
+    type: Double
+    count: 2
+    default: 0.0
+    change: false
+    writable: true
+  - name: "string_ch_"
+    type: String
+    count: 2
+    change: true
+    writable: false
+  - name: "bool_wr_"
+    type: Boolean
+    count: 2
+    default: false
+    change: false
+    writable: true
