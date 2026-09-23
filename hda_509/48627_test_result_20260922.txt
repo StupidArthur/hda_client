@@ -1,0 +1,53 @@
+48627 组合认证主流程测试结果
+执行时间: 2026-09-22 13:59:10  服务器启动: 13:58:38 (PID 54684)
+asyncua: 2.0.1  Python: 3.11.9
+
+组合认证测试：self-signed Application Cert + 独立 self-signed User Cert (48627)
+
+  [PASS] Application Cert != User Cert (DER 不同 + PublicKey 不同) -> DER_diff=True pubkey_diff=True
+  [PASS] 48627 只发布 Basic256Sha256/SignAndEncrypt (无 Sign) -> Basic256Sha256 modes=['SignAndEncrypt'] total_secure_endpoints=1
+Case 1. 全部正确（trusted App cert + registered User cert）：
+
+  [1] GetEndpoints       OK (1 endpoint(s))
+  [2] Endpoint selection OK http://opcfoundation.org/UA/SecurityPolicy#Basic256Sha256
+  [3] OpenSecureChannel  OK 
+  [4] CreateSession      OK 
+  [5] ActivateSession    OK X509 User Certificate
+  [PASS] Case 1 全部正确 -> read int32_ch_1=30
+
+Case 2. Application Certificate 未受信任（User cert 正确）：
+
+  [PASS] Case 2 未受信任 Application Cert -> Application 层失败(未进入 User Auth): CreateSession -> BadCertificateUntrusted: The certificate is not trusted.(BadCertificateUntrusted)
+
+Case 3. User Certificate 未注册（App cert 正确）：
+
+  [PASS] Case 3 未注册 User Cert -> OpenSecureChannel/CreateSession 通过, User 层失败: ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 4. User Certificate 过期（已注册但过期）：
+
+  [PASS] Case 4 过期 User Cert -> App cert 正常(CreateSession 通过), 失败来自 User cert: ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+Case 5. User Private Key 错误（User cert 正确）：
+
+  [PASS] Case 5 错误 User 私钥 -> CreateSession 通过, UserTokenSignature 校验失败: ActivateSession -> BadIdentityTokenInvalid: The user identity token is not valid.(BadIdentityTokenInvalid)
+
+Case 6. 不发送 X509 UserIdentityToken（Anonymous 被禁用）：
+
+  [PASS] Case 6 Anonymous 不降级 -> OpenSecureChannel/CreateSession 通过, ActivateSession 拒绝(anonymous:false): BadIdentityTokenRejected: The user identity token is valid but the server has rejected it.(BadIdentityTokenRejected)
+
+Case 7. 把 Application Certificate 当成 User Certificate：
+
+  [PASS] Case 7 App cert 冒充 User cert -> CreateSession 通过(Application 层 OK), User 层拒绝同一张证书: ActivateSession -> BadUserAccessDenied: User does not have permission to perform the requested operation.(BadUserAccessDenied)
+
+汇总：
+  PASS  Application Cert != User Cert (DER 不同 + PublicKey 不同)
+  PASS  48627 只发布 Basic256Sha256/SignAndEncrypt (无 Sign)
+  PASS  Case 1 全部正确
+  PASS  Case 2 未受信任 Application Cert
+  PASS  Case 3 未注册 User Cert
+  PASS  Case 4 过期 User Cert
+  PASS  Case 5 错误 User 私钥
+  PASS  Case 6 Anonymous 不降级
+  PASS  Case 7 App cert 冒充 User cert
+
+全部 9 个组合认证用例通过。
