@@ -114,6 +114,17 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
         if key not in cfg:
             raise ValueError(f"组态缺少必填项: {key}")
 
+    if not isinstance(cfg["server"], str) or not cfg["server"].strip():
+        raise ValueError("server 必须是非空字符串")
+    if not isinstance(cfg["port"], int) or isinstance(cfg["port"], bool) or not 1 <= cfg["port"] <= 65535:
+        raise ValueError("port 必须是 1..65535 的整数")
+    if not isinstance(cfg["cycle"], int) or isinstance(cfg["cycle"], bool) or cfg["cycle"] <= 0:
+        raise ValueError("cycle 必须是大于 0 的整数（毫秒）")
+    if (not isinstance(cfg["namespace_index"], int)
+            or isinstance(cfg["namespace_index"], bool)
+            or cfg["namespace_index"] <= 0):
+        raise ValueError("namespace_index 必须是大于 0 的整数")
+
     if not isinstance(cfg["nodes"], list):
         raise ValueError("组态中 nodes 必须为列表")
 
@@ -125,6 +136,38 @@ def load_config(config_path: str | Path) -> dict[str, Any]:
                 raise ValueError(f"nodes[{i}] 缺少必填项: {k}")
         if node["change"] is False and "default" not in node:
             raise ValueError(f"nodes[{i}] change=false 时必须提供 default")
+        if not isinstance(node["name"], str) or not node["name"]:
+            raise ValueError(f"nodes[{i}].name 必须是非空字符串")
+        if not isinstance(node["count"], int) or isinstance(node["count"], bool) or node["count"] <= 0:
+            raise ValueError(f"nodes[{i}].count 必须是大于 0 的整数")
+        for flag in ("change", "writable"):
+            if not isinstance(node[flag], bool):
+                raise ValueError(f"nodes[{i}].{flag} 必须是布尔值")
+
+    # 提前拦截必然无法启动或会造成认证降级的组态。
+    security = cfg.get("security")
+    if isinstance(security, dict):
+        validation = str(security.get("client_cert_validation", "trusted")).lower()
+        if validation == "trusted" and not security.get("trust_store"):
+            raise ValueError("client_cert_validation=trusted 时必须配置 trust_store")
+        policies = security.get("policies", [])
+        if policies and policies != ["NoSecurity"]:
+            app_cert = security.get("application_certificate")
+            if not isinstance(app_cert, dict) or not app_cert.get("cert") or not app_cert.get("private_key"):
+                raise ValueError("启用安全策略时必须同时配置服务端证书和私钥")
+
+    user_auth = cfg.get("user_auth")
+    if isinstance(user_auth, dict):
+        enabled = [user_auth.get(k) is True for k in ("anonymous", "username", "x509")]
+        if not any(enabled):
+            raise ValueError("user_auth 至少必须启用一种认证方式")
+        if user_auth.get("username") is True and not user_auth.get("users"):
+            raise ValueError("启用 username 认证时必须配置 users")
+        if user_auth.get("x509") is True:
+            if str(user_auth.get("x509_validation", "direct")).lower() != "direct":
+                raise ValueError("当前 x509_validation 仅支持 direct")
+            if not user_auth.get("x509_user_cert"):
+                raise ValueError("启用 x509 认证时必须配置 x509_user_cert")
 
     _resolve_paths(path.parent, cfg)
     logger.info("组态加载成功: %s", path)

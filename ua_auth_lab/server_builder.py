@@ -313,9 +313,9 @@ async def _setup_certificate_validator(server: Server, cfg: dict[str, Any]) -> N
         trust_store = _load_trust(trust_dir)
         await trust_store.load()
     elif mode == "trusted":
-        # 历史行为：没配 trust_store 且要严格校验 -> 干脆不校验（保留原日志）
-        logger.info("未配置 trust_store, 不校验客户端证书")
-        return
+        # 严格模式必须 fail closed，否则配置遗漏会把“必须受信”
+        # 静默降级为“完全不校验”。
+        raise ValueError("client_cert_validation=trusted 时必须配置有效的 trust_store")
 
     if mode == "basic":
         options = (

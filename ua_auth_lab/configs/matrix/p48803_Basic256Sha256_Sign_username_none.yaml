@@ -13,7 +13,7 @@ cycle: 1000
 namespace_index: 1
 application:
   name: UA Auth Lab (matrix port)
-  uri: urn:ua-auth-lab:server
+  uri: urn:freeopcua:python:server
 security:
   trust_store: ../../test_material/certs/trust
   application_certificate:

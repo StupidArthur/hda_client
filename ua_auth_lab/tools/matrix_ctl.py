@@ -3,7 +3,7 @@
 """
 UA Auth Lab —— 全拆矩阵端口启停控制。
 
-按 configs/matrix/manifest.json 批量启动 / 停止 / 查询 33 个端口的服务器进程。
+按 configs/matrix/manifest.json 批量启动 / 停止 / 查询矩阵端口的服务器进程。
 
 特性：
 
@@ -14,7 +14,7 @@ UA Auth Lab —— 全拆矩阵端口启停控制。
 
 用法：
 
-    python tools/matrix_ctl.py start [--only 48730,48731] [--no-wait]
+    python tools/matrix_ctl.py start [--only 48730,48731] [--no-wait] [--allow-insecure]
     python tools/matrix_ctl.py status
     python tools/matrix_ctl.py stop
 
@@ -33,6 +33,78 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 MANIFEST = BASE_DIR / "configs" / "matrix" / "manifest.json"
 PID_FILE = BASE_DIR / "configs" / "matrix" / ".pids.json"
 PYTHON = sys.executable
+
+
+def _process_fingerprint(pid: int) -> str | None:
+    """读取进程的可执行文件和创建时间，用于识别 PID 复用。"""
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
+
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel32.OpenProcess.restype = wintypes.HANDLE
+            kernel32.QueryFullProcessImageNameW.argtypes = [
+                wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                ctypes.POINTER(wintypes.DWORD),
+            ]
+            kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+            kernel32.GetProcessTimes.argtypes = [
+                wintypes.HANDLE, ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME),
+            ]
+            kernel32.GetProcessTimes.restype = wintypes.BOOL
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle.restype = wintypes.BOOL
+            handle = kernel32.OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION, False, pid
+            )
+            if not handle:
+                return None
+            try:
+                size = wintypes.DWORD(32768)
+                buf = ctypes.create_unicode_buffer(size.value)
+                if not kernel32.QueryFullProcessImageNameW(
+                    handle, 0, buf, ctypes.byref(size)
+                ):
+                    return None
+                created, exited, kernel, user = (wintypes.FILETIME() for _ in range(4))
+                if not kernel32.GetProcessTimes(
+                    handle, ctypes.byref(created), ctypes.byref(exited),
+                    ctypes.byref(kernel), ctypes.byref(user),
+                ):
+                    return None
+                ticks = (created.dwHighDateTime << 32) | created.dwLowDateTime
+                return f"{buf.value.lower()}|{ticks}"
+            finally:
+                kernel32.CloseHandle(handle)
+        exe = Path(f"/proc/{pid}/exe").resolve()
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+        # comm is parenthesized and may itself contain spaces; parse fields only
+        # after its final ')' so field 22 (starttime) stays in a fixed position.
+        fields = stat[stat.rfind(")") + 2:].split()
+        return f"{exe}|{fields[19]}"
+    except (OSError, ValueError):
+        return None
+
+
+def _record_matches(record: object, config_path: Path) -> bool:
+    """确认 PID 仍是本工具以目标组态启动的 main.py。"""
+    if (not isinstance(record, dict) or not isinstance(record.get("pid"), int)
+            or isinstance(record.get("pid"), bool) or record["pid"] <= 0):
+        return False
+    expected_config = str(config_path.resolve()).lower()
+    fingerprint = record.get("fingerprint")
+    if not isinstance(fingerprint, str) or not fingerprint:
+        return False
+    config = record.get("config")
+    return (
+        isinstance(config, str) and config.lower() == expected_config
+        and fingerprint == _process_fingerprint(record["pid"])
+    )
 
 
 def load_manifest() -> dict:
@@ -82,19 +154,38 @@ def select_entries(manifest: dict, only: str | None) -> list[dict]:
 def cmd_start(args) -> int:
     manifest = load_manifest()
     entries = select_entries(manifest, args.only)
+    insecure = [e["port"] for e in entries if e.get("validation") == "none"]
+    if insecure and not args.allow_insecure:
+        print(
+            "[FAIL] 本次包含完全不校验客户端应用证书的端口: "
+            f"{insecure}\n确认用于隔离实验环境后追加 --allow-insecure。",
+            file=sys.stderr,
+        )
+        return 1
     pids = _load_pids()
+
+    # Preflight the whole selection before creating any process, so a busy port
+    # or missing config cannot leave a partially started matrix behind.
+    for e in entries:
+        config_path = BASE_DIR / e["config"]
+        if not config_path.is_file():
+            print(f"[FAIL] {e['port']}: 组态不存在 {e['config']}", file=sys.stderr)
+            return 1
+        if _listening(e["port"]) and not _record_matches(pids.get(str(e["port"])), config_path):
+            print(
+                f"[FAIL] {e['port']}: 端口已被非本次记录的进程占用，拒绝当作实验服务",
+                file=sys.stderr,
+            )
+            return 1
 
     started: list[tuple[int, int]] = []
     skipped: list[int] = []
     for e in entries:
         port = e["port"]
+        config_path = BASE_DIR / e["config"]
         if _listening(port):
             skipped.append(port)
             continue
-        config_path = BASE_DIR / e["config"]
-        if not config_path.exists():
-            print(f"[FAIL] {port}: 组态不存在 {e['config']}", file=sys.stderr)
-            return 1
         env = {"UA_MOCK_LOG_SUFFIX": f"_{port}"}
         import os
         proc_env = dict(os.environ)
@@ -115,8 +206,26 @@ def cmd_start(args) -> int:
             )
         except OSError as exc:
             print(f"[FAIL] {port}: 启动失败 {exc}", file=sys.stderr)
+            for started_port, started_pid in started:
+                if _process_fingerprint(started_pid) is None:
+                    continue
+                if sys.platform == "win32":
+                    subprocess.run(
+                        ["taskkill", "/PID", str(started_pid), "/T", "/F"],
+                        capture_output=True, check=False,
+                    )
+                else:
+                    import os
+                    os.kill(started_pid, 15)
+                pids.pop(str(started_port), None)
+            _save_pids(pids)
             return 1
-        pids[str(port)] = p.pid
+        pids[str(port)] = {
+            "pid": p.pid,
+            "config": str(config_path.resolve()),
+            "fingerprint": _process_fingerprint(p.pid),
+            "started_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        }
         started.append((port, p.pid))
 
     _save_pids(pids)
@@ -158,13 +267,22 @@ def cmd_start(args) -> int:
 
 def cmd_status(_args) -> int:
     manifest = load_manifest()
-    up, down = [], []
+    pids = _load_pids()
+    up, down, foreign = [], [], []
     for e in manifest["entries"]:
-        (up if _listening(e["port"]) else down).append(e["port"])
+        port = e["port"]
+        if not _listening(port):
+            down.append(port)
+        elif _record_matches(pids.get(str(port)), BASE_DIR / e["config"]):
+            up.append(port)
+        else:
+            foreign.append(port)
     print(f"监听中 {len(up)} / 共 {manifest['port_count']}")
     if down:
         print(f"未监听 {len(down)} 个: {down}")
-    return 0 if not down else 1
+    if foreign:
+        print(f"端口被未识别进程占用 {len(foreign)} 个: {foreign}")
+    return 0 if not down and not foreign else 1
 
 
 def cmd_stop(_args) -> int:
@@ -174,24 +292,49 @@ def cmd_stop(_args) -> int:
         return 0
 
     stopped, failed, not_running = [], [], []
-    for port_str, pid in sorted(pids.items(), key=lambda kv: int(kv[0])):
+    remaining = dict(pids)
+    manifest = load_manifest()
+    for port_str, record in sorted(pids.items(), key=lambda kv: int(kv[0])):
         port = int(port_str)
-        if not _listening(port) and not _pid_alive(pid):
+        entry = next((e for e in manifest["entries"] if e["port"] == port), None)
+        if entry is None:
+            failed.append((port, 0, "端口不在当前矩阵清单中，拒绝终止"))
+            continue
+        config_path = BASE_DIR / entry["config"]
+        if not isinstance(record, dict) or not isinstance(record.get("pid"), int):
+            failed.append((port, 0, "旧版或损坏的 PID 记录；为避免误杀，请人工确认"))
+            continue
+        pid = record["pid"]
+        if not _pid_alive(pid):
             not_running.append(port)
+            remaining.pop(port_str, None)
+            continue
+        if not _record_matches(record, config_path):
+            failed.append((port, pid, "PID 存在但命令行不匹配，拒绝终止"))
             continue
         try:
             if sys.platform == "win32":
-                subprocess.run(
+                result = subprocess.run(
                     ["taskkill", "/PID", str(pid), "/T", "/F"],
-                    capture_output=True, check=False,
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
+                    check=False,
                 )
+                if result.returncode != 0:
+                    detail = (result.stderr or result.stdout or "taskkill failed").strip()
+                    raise OSError(detail)
             else:
                 import os
                 os.kill(pid, 15)
+            deadline = time.time() + 5
+            while _pid_alive(pid) and time.time() < deadline:
+                time.sleep(0.1)
+            if _pid_alive(pid):
+                raise OSError("进程在终止命令后仍存活")
             stopped.append(port)
+            remaining.pop(port_str, None)
         except OSError as exc:
             failed.append((port, pid, str(exc)))
-    _save_pids({})
+    _save_pids(remaining)
 
     print(f"已停止 {len(stopped)} 个进程")
     if not_running:
@@ -204,15 +347,7 @@ def cmd_stop(_args) -> int:
 
 
 def _pid_alive(pid: int) -> bool:
-    if sys.platform == "win32":
-        r = subprocess.run(["tasklist", "/PID", str(pid)], capture_output=True, text=True)
-        return str(pid) in (r.stdout or "")
-    import os
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+    return _process_fingerprint(pid) is not None
 
 
 def main() -> int:
@@ -222,6 +357,10 @@ def main() -> int:
     p_start = sub.add_parser("start", help="启动全部端口")
     p_start.add_argument("--only", default=None, help="只启动指定端口(逗号分隔)，如 48730,48731")
     p_start.add_argument("--no-wait", action="store_true", help="不等待端口就绪")
+    p_start.add_argument(
+        "--allow-insecure", action="store_true",
+        help="允许启动 client_cert_validation=none 的开放端口",
+    )
     p_start.set_defaults(func=cmd_start)
 
     p_status = sub.add_parser("status", help="查看监听状态")

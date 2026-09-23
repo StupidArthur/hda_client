@@ -25,6 +25,7 @@ UA Auth Lab —— 全拆（方案 A）端口配置生成器。
 """
 
 import argparse
+import hashlib
 import json
 import sys
 from datetime import datetime
@@ -492,6 +493,7 @@ def generate(matrix_path: Path, out_dir: Path) -> dict[str, Any]:
     manifest = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "source": str(matrix_path.relative_to(BASE_DIR)).replace("\\", "/"),
+        "source_sha256": hashlib.sha256(matrix_path.read_bytes()).hexdigest(),
         "client_host": client_host,
         "base_port": base_port,
         "port_step": step,

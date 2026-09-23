@@ -1,6 +1,7 @@
 {
-  "generated_at": "2026-09-22T15:56:17",
+  "generated_at": "2026-09-23T20:47:25",
   "source": "configs/matrix.yaml",
+  "source_sha256": "5b41eb4931b3cc868f27347eb10f5ed5ac9f0b362f2d917dec7e71a1a759cdcc",
   "client_host": "10.30.70.77",
   "base_port": 48730,
   "port_step": 1,

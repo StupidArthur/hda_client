@@ -20,11 +20,10 @@ certificate with a USER identity):
              (the X.509 user cert is a DIFFERENT certificate from the
               application certificate; see README)
 
-GetEndpoints is performed on a short-lived secure channel opened with the
-same security policy, then that channel is closed and a fresh connection is
-established for the real session. This keeps the stages observable without
-depending on an unencrypted channel (the normal server does not publish
-None/None by design).
+GetEndpoints is performed through the OPC UA discovery path on a short-lived
+NoSecurity channel. The returned EndpointDescription is then selected before
+a fresh channel is opened with the requested policy. This mirrors common
+third-party client behaviour; a discovery channel does not create a Session.
 
 Path resolution uses pathlib and never depends on the current working
 directory or on shell tools, so the code behaves identically on macOS and
@@ -124,13 +123,15 @@ async def _close_temp_channel(client: Client) -> None:
 
 
 async def fetch_endpoints(client: Client) -> list:
-    """[1] 用独立临时连接调用 GetEndpoints，返回服务器实际暴露的端点列表。"""
+    """[1] 用独立无会话 Discovery 连接调用 GetEndpoints。"""
+    discovery = Client(client.server_url.geturl())
     try:
-        await _open_temp_channel(client)
-        endpoints = await client.get_endpoints()
-        return endpoints
+        return await discovery.connect_and_get_server_endpoints()
     finally:
-        await _close_temp_channel(client)
+        try:
+            await discovery.disconnect()
+        except Exception:  # noqa: BLE001
+            pass
 
 
 async def stage_connect(

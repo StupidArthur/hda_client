@@ -166,7 +166,7 @@ python test_material/gen_certs.py
 python tools/gen_matrix_configs.py
 
 # 4. 启动全部端口
-python tools/matrix_ctl.py start        # status / stop 同理
+python tools/matrix_ctl.py start --allow-insecure  # 启动全部（含 none 开放端口）
 
 # 5. 验证
 python tests/matrix_port_tests.py                 # 385 断言
@@ -183,6 +183,8 @@ python client/auth_matrix_client.py --group open  # 只跑开放接入块（不�
 > 只需要"任意客户端能连进来"来验证时，可直接用开放端口块：
 > `--validation none` 的端口完全不校验客户端应用证书（自签/过期都能建 Session），
 > `--validation basic` 的端口不查信任但仍校验有效期与 ApplicationUri。
+> 因此 `matrix_ctl.py` 默认拒绝启动 `none` 端口；只有显式传入
+> `--allow-insecure` 才会启动它们。启动单个核心端口不需要该参数。
 
 ---
 
@@ -217,18 +219,40 @@ python client/auth_matrix_client.py --group open  # 只跑开放接入块（不�
 
 ---
 
-## 6. 测试结果
+## 6. 测试与结果边界
 
-最新一轮全量结果（77 端口）；历史报告见 `reports/`。
+自动化测试的服务端和参考客户端都使用 `asyncua 2.0.1`，因此结果只证明
+asyncua 内部回归通过，不等价于第三方 OPC UA 客户端兼容性认证。异构验收见
+`tests/THIRD_PARTY_ACCEPTANCE.md`。
 
-| 测试 | 结果 |
+`reports/full_test_result_20260923.md` 记录当前工作树的 77 端口完整验证。
+验证在隔离副本中把客户端连接地址改为 `127.0.0.1`；报告注明了源码版本、
+矩阵哈希与证书主机名警告。异构客户端验收仍按 `tests/THIRD_PARTY_ACCEPTANCE.md` 执行。
+
+| 测试 | 2026-09-23 结果 |
 |---|---|
-| `matrix_port_tests.py`（385 断言：77 正向 + 77 端点隔离 + 77 Token 隔离 + 154 负向） | **385/385 PASS** |
-| `client_cert_validation_tests.py`（11 用例：trusted / basic / none 的放行与边界） | **11/11 PASS** |
-| `auth_negative_tests.py`（11 用例：凭证/证书材料类） | **11/11 PASS** |
-| `auth_concurrent_tests.py`（9 组：三端口 × 有效/无效并发） | **9/9 PASS** |
+| `matrix_port_tests.py` | **385/385 断言 PASS**（77 端口） |
+| `client_cert_validation_tests.py`（trusted / basic / none） | **11/11 PASS** |
+| `auth_negative_tests.py`（凭证/证书材料负向） | **11/11 PASS** |
+| `auth_concurrent_tests.py`（三种身份并发） | **9/9 PASS** |
 | `auth_mode_toggle_tests.py`（9 组：单方式开关，48631-33） | **9/9 PASS** |
-| `auth_matrix_client.py --negative` | **77/77 正向 + 154/154 负向 PASS** |
+| `auth_matrix_client.py --negative` | 正向 **77/77**，负向 **154/154 PASS** |
+| `authorization_tests.py`（Read/Write；尚未单独执行 Browse） | **9/9 PASS** |
+| `session_lifecycle_tests.py`（重复/并发 Session） | **3/3 PASS** |
+| `unit_safety_tests.py`（配置 fail-closed、PID 记录保护） | **7/7 PASS** |
+
+以上完整结果和限制见 [本轮测试报告](reports/full_test_result_20260923.md)。
+`auth_mode_toggle_tests.py` 的 9/9 是旧端口配置的历史结果，不计入本轮 77 端口验证。
+
+可单独运行的离线和代表性测试：
+
+```bash
+python tests/unit_safety_tests.py          # 无需启动服务：fail-closed 配置规则
+python tests/authorization_tests.py        # Read/Write 授权边界
+python tests/session_lifecycle_tests.py    # 重复和并发 Session 稳定性
+```
+
+> 本轮 UA 自动化测试均使用 asyncua 2.0.1；不能替代 UaExpert 或其他协议栈的实机验收。
 
 应用证书校验模式的实证对照（`client_cert_validation_tests.py`；端点
 `Basic256Sha256/SignAndEncrypt`，客户端出示**未受信**应用证书）：
