@@ -1,12 +1,15 @@
 # hda_mocker_4
 
+HDA Mocker 4 v1.4.2 is a pure command-line application. The Wails desktop UI and embedded frontend have been removed. Pass `--config` to start a preset; startup progress and errors are printed to the console and saved under `logs/` beside the executable.
+
 中文详细文档：
 
 - [功能说明](docs/HDA_MOCKER_4_FUNCTIONS.md)
 - [数据集提交规范](docs/HDA_MOCKER_4_DATASET_SUBMISSION_RULE.md)
 - [使用手册](docs/HDA_MOCKER_4_MANUAL.md)
+- [v1.4.1 / v1.4.2 更新说明](docs/HDA_MOCKER_4_RELEASE_1_4_1_1_4_2.md)
 
-This preset is a small, file-based OPC UA Historical Access mocker. Go owns the
+This preset is a file-based OPC UA Historical Access mocker. Go owns the
 DuckDB history database, import, playback, UA Read/Subscribe and raw
 HistoryRead. Python is only an example source adapter and writes Parquet; it
 never opens the runtime database.
@@ -35,6 +38,8 @@ and subscriptions honor `TimestampsToReturn`, and HistoryRead rejects
 go build -o hda_mocker_4.exe .
 .\hda_mocker_4.exe --config presets\demo\config.yaml
 ```
+
+Without arguments, the executable prints usage. Use `--version` to check the packaged version. Press Ctrl+C for graceful shutdown.
 
 The config directory is the preset root. Only the first-level `hda/*.parquet`
 and `da/*.parquet` files are read. `hda` requires a first `Timestamp` column

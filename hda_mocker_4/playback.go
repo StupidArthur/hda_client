@@ -25,7 +25,7 @@ type Playback struct {
 	lastExpectedTags int
 }
 
-// PlaybackFileState is a cheap in-memory snapshot for the GUI. It is updated
+// PlaybackFileState is a cheap in-memory snapshot for runtime reporting. It is updated
 // only after the HDA write and cursor update commit together.
 type PlaybackFileState struct {
 	Name         string    `json:"name"`

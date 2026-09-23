@@ -107,17 +107,22 @@ func (c *RuntimeController) diagnosticMaps() (map[string]any, map[string]any) {
 		"hda.imported_samples": snapshot.HDASamples,
 	}
 	diag := map[string]any{
-		"status":                 "error",
-		"message":                "OPC UA服务未运行",
-		"runtime.phase":          snapshot.Phase,
-		"da.last_time":           "",
-		"da.tag_count":           0,
-		"da.expected_count":      snapshot.DATagCount,
-		"hda.last_time":          "",
-		"hda.tag_count":          0,
-		"hda.expected_count":     snapshot.DATagCount,
-		"opcua.connection_count": 0,
-		"opcua.session_count":    0,
+		"status":                                 "error",
+		"message":                                "OPC UA服务未运行",
+		"runtime.phase":                          snapshot.Phase,
+		"da.last_time":                           "",
+		"da.tag_count":                           0,
+		"da.expected_count":                      snapshot.DATagCount,
+		"hda.last_time":                          "",
+		"hda.tag_count":                          0,
+		"hda.expected_count":                     snapshot.DATagCount,
+		"opcua.connection_count":                 0,
+		"opcua.session_count":                    0,
+		"opcua.subscription_count":               0,
+		"opcua.monitored_item_count":             0,
+		"opcua.notification_pending":             0,
+		"opcua.notification_coalesced_total":     uint64(0),
+		"opcua.notification_coalesced_last_time": "",
 	}
 	if runtime == nil || runtime.playback == nil || runtime.server == nil || runtime.store == nil {
 		if snapshot.Phase != phaseFailed && snapshot.Phase != phaseIdle {
@@ -152,6 +157,12 @@ func (c *RuntimeController) diagnosticMaps() (map[string]any, map[string]any) {
 		return sessions[i].RemoteAddress+sessions[i].ApplicationURI+sessions[i].SessionName < sessions[j].RemoteAddress+sessions[j].ApplicationURI+sessions[j].SessionName
 	})
 	diag["opcua.connection_count"], diag["opcua.session_count"] = len(connections), len(sessions)
+	subscriptions := runtime.server.SubscriptionStats()
+	diag["opcua.subscription_count"] = subscriptions.Subscriptions
+	diag["opcua.monitored_item_count"] = subscriptions.MonitoredItems
+	diag["opcua.notification_pending"] = subscriptions.PendingNotifications
+	diag["opcua.notification_coalesced_total"] = subscriptions.CoalescedTotal
+	diag["opcua.notification_coalesced_last_time"] = formatDiagnosticTime(subscriptions.LastCoalesced)
 	for i, session := range sessions {
 		prefix := "opcua.client." + strconv.Itoa(i+1) + "."
 		diag[prefix+"remote_address"] = session.RemoteAddress
@@ -171,6 +182,10 @@ func (c *RuntimeController) diagnosticMaps() (map[string]any, map[string]any) {
 		message = fmt.Sprintf("等待首轮DA播放和HDA入库；期望位号 %d；UA会话 %d", snapshot.DATagCount, len(sessions))
 	} else if daCount < expectedCount || hdaCount < expectedCount {
 		status = "warn"
+	}
+	if !subscriptions.LastCoalesced.IsZero() && time.Since(subscriptions.LastCoalesced) < time.Minute {
+		status = "warn"
+		message += fmt.Sprintf("；近一分钟订阅通知发生合并，累计 %d 次", subscriptions.CoalescedTotal)
 	}
 	diag["status"], diag["message"] = status, message
 	return info, diag

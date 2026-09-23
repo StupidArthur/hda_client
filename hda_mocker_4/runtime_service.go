@@ -1,8 +1,8 @@
 package main
 
-// This file owns the mocker's process lifetime. Both the CLI and the desktop
-// application use RuntimeController, keeping one startup order and one set of
-// transaction guarantees for HDA import, OPC UA startup and DA playback.
+// This file owns the mocker's process lifetime. RuntimeController provides one
+// startup order and one set of transaction guarantees for HDA import, OPC UA
+// startup and DA playback.
 
 import (
 	"context"
@@ -29,7 +29,7 @@ const (
 	phaseFailed     = "failed"
 )
 
-// RuntimeSnapshot contains only values which are safe to poll from the GUI.
+// RuntimeSnapshot contains the runtime state exposed to CLI logs and diagnostics.
 // It deliberately has no database handles or goroutine channels.
 type RuntimeSnapshot struct {
 	Phase          string              `json:"phase"`
@@ -426,8 +426,8 @@ func (c *RuntimeController) Stop() {
 	}
 }
 
-// StopAndWait is used by the CLI and Wails shutdown callback so the process
-// does not close DuckDB while a playback or import transaction is active.
+// StopAndWait prevents DuckDB from closing while a playback or import
+// transaction is active.
 func (c *RuntimeController) StopAndWait(timeout time.Duration) {
 	c.Stop()
 	c.mu.RLock()

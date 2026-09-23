@@ -2,23 +2,17 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"log"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"sync"
 )
 
 const (
-	logFileName    = "hda_mocker_4.log"
-	stderrFileName = "hda_mocker_4.stderr.log"
-	maxLogSize     = int64(20 * 1024 * 1024)
-	maxLogBackups  = 5
-)
-
-var (
-	logOutputMu sync.RWMutex
-	logOutput   io.Writer = os.Stderr
+	logFileName   = "hda_mocker_4.log"
+	crashFileName = "hda_mocker_4_crash.log"
+	maxLogSize    = int64(20 * 1024 * 1024)
+	maxLogBackups = 5
 )
 
 type rollingLogWriter struct {
@@ -111,10 +105,11 @@ func (w *rollingLogWriter) Close() error {
 
 type applicationLogs struct {
 	rolling *rollingLogWriter
-	stderr  *os.File
+	crash   *os.File
+	crashErr error
 }
 
-func initializeApplicationLogs() (*applicationLogs, error) {
+func openApplicationLogs() (*applicationLogs, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -127,22 +122,19 @@ func initializeApplicationLogs() (*applicationLogs, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open application log: %w", err)
 	}
-	stderr, err := redirectProcessStderr(filepath.Join(dir, stderrFileName))
+	logs := &applicationLogs{rolling: rolling}
+	crash, err := os.OpenFile(filepath.Join(dir, crashFileName), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		rolling.Close()
-		return nil, fmt.Errorf("open stderr log: %w", err)
+		logs.crashErr = fmt.Errorf("open crash log: %w", err)
+		return logs, nil
 	}
-	logOutputMu.Lock()
-	logOutput = rolling
-	log.SetOutput(rolling)
-	logOutputMu.Unlock()
-	return &applicationLogs{rolling: rolling, stderr: stderr}, nil
-}
-
-func applicationLogOutput() io.Writer {
-	logOutputMu.RLock()
-	defer logOutputMu.RUnlock()
-	return logOutput
+	if err := debug.SetCrashOutput(crash, debug.CrashOptions{}); err != nil {
+		logs.crashErr = fmt.Errorf("enable crash log: %w", err)
+		_ = crash.Close()
+		return logs, nil
+	}
+	logs.crash = crash
+	return logs, nil
 }
 
 func (l *applicationLogs) Close() {
@@ -152,7 +144,8 @@ func (l *applicationLogs) Close() {
 	if l.rolling != nil {
 		_ = l.rolling.Close()
 	}
-	if l.stderr != nil {
-		_ = l.stderr.Close()
+	if l.crash != nil {
+		_ = debug.SetCrashOutput(nil, debug.CrashOptions{})
+		_ = l.crash.Close()
 	}
 }

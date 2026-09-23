@@ -21,6 +21,7 @@ import (
 	"github.com/gopcua/opcua/ua"
 	"github.com/gopcua/opcua/uacp"
 	"github.com/gopcua/opcua/uapolicy"
+	"github.com/gopcua/opcua/uasc"
 )
 
 //go:generate go run ../cmd/predefined-nodes/main.go
@@ -170,6 +171,9 @@ func New(opts ...Option) *Server {
 }
 
 func (s *Server) Session(hdr *ua.RequestHeader) *session {
+	if hdr == nil {
+		return nil
+	}
 	return s.sb.Session(hdr.AuthenticationToken)
 }
 
@@ -222,6 +226,24 @@ func (s *Server) Endpoints() []*ua.EndpointDescription {
 }
 
 func (s *Server) SessionInfos() []SessionInfo { return s.sb.Infos() }
+
+func (s *Server) SubscriptionStats() SubscriptionStats {
+	if s.SubscriptionService == nil {
+		return SubscriptionStats{}
+	}
+	return s.SubscriptionService.Stats()
+}
+
+func (s *Server) bindSession(sess *session, channel *uasc.SecureChannel) {
+	s.sb.Bind(sess, channel)
+	if channel != nil && !s.cb.HasChannel(channel) {
+		s.closeChannelSessions(channel)
+	}
+}
+
+func (s *Server) closeChannelSessions(channel *uasc.SecureChannel) {
+	s.sb.CloseChannel(channel)
+}
 
 func (s *Server) ConnectionAddresses() []string {
 	s.cb.mu.RLock()
@@ -279,6 +301,12 @@ func (s *Server) Start(ctx context.Context) error {
 	if s.cb == nil {
 		s.cb = newChannelBroker(s.cfg.logger)
 	}
+	s.sb.onExpire = func(session *session) {
+		if s.SubscriptionService != nil {
+			s.SubscriptionService.DeleteSessionSubscriptions(session)
+		}
+	}
+	s.cb.onClosed = s.closeChannelSessions
 
 	go s.acceptAndRegister(ctx, s.l)
 	go s.monitorConnections(ctx)

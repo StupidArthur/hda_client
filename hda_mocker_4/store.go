@@ -104,7 +104,7 @@ func (s *Store) tags() ([]Tag, error) {
 	return out, nil
 }
 
-// importFiles keeps the command-line import contract. GUI startup uses the
+// importFiles keeps the simple import contract. Runtime startup uses the
 // context-aware variant so a stop request can roll back the active file safely.
 func (s *Store) importFiles(root string, files []FileInfo) (ImportResult, error) {
 	return s.importFilesContext(context.Background(), files, nil)

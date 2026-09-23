@@ -38,6 +38,8 @@ func (s *SessionService) CreateSession(sc *uasc.SecureChannel, r ua.Request, req
 
 	// New session
 	sess := s.srv.sb.NewSession()
+	s.srv.bindSession(sess, sc)
+	s.srv.sb.mu.Lock()
 	if sc != nil && sc.RemoteAddr() != nil {
 		sess.RemoteAddress = sc.RemoteAddr().String()
 	}
@@ -49,6 +51,7 @@ func (s *SessionService) CreateSession(sc *uasc.SecureChannel, r ua.Request, req
 			sess.ApplicationName = req.ClientDescription.ApplicationName.Text
 		}
 	}
+	s.srv.sb.mu.Unlock()
 
 	// Ensure session timeout is reasonable
 	sess.cfg.sessionTimeout = time.Duration(req.RequestedSessionTimeout) * time.Millisecond
@@ -62,7 +65,6 @@ func (s *SessionService) CreateSession(sc *uasc.SecureChannel, r ua.Request, req
 		return nil, ua.StatusBadInternalError
 	}
 	sess.serverNonce = nonce
-	sess.ActivatedAt = time.Now().UTC()
 	sess.remoteCertificate = req.ClientCertificate
 
 	sig, alg, err := sc.NewSessionSignature(req.ClientCertificate, req.ClientNonce)
@@ -147,6 +149,10 @@ func (s *SessionService) ActivateSession(sc *uasc.SecureChannel, r ua.Request, r
 		return nil, ua.StatusBadInternalError
 	}
 	sess.serverNonce = nonce
+	s.srv.sb.mu.Lock()
+	sess.ActivatedAt = time.Now().UTC()
+	s.srv.sb.mu.Unlock()
+	s.srv.bindSession(sess, sc)
 
 	response := &ua.ActivateSessionResponse{
 		ResponseHeader: responseHeader(req.RequestHeader.RequestHandle, ua.StatusOK),
@@ -169,12 +175,18 @@ func (s *SessionService) CloseSession(sc *uasc.SecureChannel, r ua.Request, reqI
 		return nil, err
 	}
 
+	sess := s.srv.sb.Session(req.RequestHeader.AuthenticationToken)
+	if sess == nil {
+		return nil, ua.StatusBadSessionIDInvalid
+	}
 	err = s.srv.sb.Close(req.RequestHeader.AuthenticationToken)
 	if err != nil {
 		return nil, ua.StatusBadSessionIDInvalid
 	}
 
-	//TODO: deal with 'delete subscriptions' field in request
+	// TransferSubscriptions is unsupported, so a closed session cannot retain
+	// subscriptions even when the client requests DeleteSubscriptions=false.
+	s.srv.SubscriptionService.DeleteSessionSubscriptions(sess)
 	response := &ua.CloseSessionResponse{
 		ResponseHeader: responseHeader(req.RequestHeader.RequestHandle, ua.StatusOK),
 	}

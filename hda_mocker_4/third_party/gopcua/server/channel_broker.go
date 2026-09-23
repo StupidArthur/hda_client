@@ -31,8 +31,9 @@ type channelBroker struct {
 
 	// msgChan is the common channel that all messages from all channels
 	// get funneled into for handling
-	msgChan chan *uasc.MessageBody
-	logger  Logger
+	msgChan  chan *uasc.MessageBody
+	logger   Logger
+	onClosed func(*uasc.SecureChannel)
 }
 
 func newChannelBroker(logger Logger) *channelBroker {
@@ -45,6 +46,17 @@ func newChannelBroker(logger Logger) *channelBroker {
 		secureTokenID:   uint32(rng.Int31()),
 		logger:          logger,
 	}
+}
+
+func (c *channelBroker) HasChannel(channel *uasc.SecureChannel) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, current := range c.s {
+		if current == channel {
+			return true
+		}
+	}
+	return false
 }
 
 // RegisterConn connects a new UACP connection to the channel broker's list
@@ -119,6 +131,9 @@ outer:
 	c.mu.Lock()
 	delete(c.s, secureChannelID)
 	c.mu.Unlock()
+	if c.onClosed != nil {
+		c.onClosed(sc)
+	}
 	c.wg.Done()
 
 	return nil

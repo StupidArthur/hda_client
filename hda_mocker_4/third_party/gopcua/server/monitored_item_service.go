@@ -1,7 +1,6 @@
 package server
 
 import (
-	"errors"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -32,69 +31,46 @@ type MonitoredItemService struct {
 func (s *MonitoredItemService) DeleteMonitoredItem(id uint32) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
-	item, ok := s.Items[id]
-	if !ok {
-		// id does not exist.
-		return
-	}
+	s.deleteMonitoredItemLocked(id)
+}
 
-	if item == nil || item.Req == nil || item.Req.ItemToMonitor == nil || item.Req.ItemToMonitor.NodeID == nil {
-		return
-	}
-	nodeid := item.Req.ItemToMonitor.NodeID.String()
-
-	if s == nil || s.Nodes == nil || s.Nodes[nodeid] == nil {
-		return
-	}
-
-	// delete the monitored item from all nodes
-	// was using slices.DeleteFunc but that is from a newer go version so we'll do it manually with /exp/slices
-	// we've got to go backwards because we're deleting from the slice as we go.
-	// I'm guessing this loop is less efficient than slices.DeleteFunc but it's what we've got.
+// Caller must hold Mu.
+func (s *MonitoredItemService) deleteMonitoredItemLocked(id uint32) {
+	item := s.Items[id]
 	delete(s.Items, id)
-	for i := len(s.Nodes[nodeid]) - 1; i >= 0; i-- {
-		n := s.Nodes[nodeid][i]
-		if n == nil {
-			continue
-		}
-		if n.ID == id {
-			s.Nodes[nodeid] = slices.Delete(s.Nodes[nodeid], i, i+1)
+	if item == nil {
+		return
+	}
+	if item.Req != nil && item.Req.ItemToMonitor != nil && item.Req.ItemToMonitor.NodeID != nil {
+		nodeid := item.Req.ItemToMonitor.NodeID.String()
+		items := slices.DeleteFunc(s.Nodes[nodeid], func(n *MonitoredItem) bool { return n == nil || n.ID == id })
+		if len(items) == 0 {
+			delete(s.Nodes, nodeid)
+		} else {
+			s.Nodes[nodeid] = items
 		}
 	}
-	//slices.DeleteFunc(s.Nodes[nodeid], func(i *MonitoredItem) bool { return i.ID == item.ID })
-	if len(s.Nodes[nodeid]) == 0 {
-		delete(s.Nodes, nodeid)
-	}
-
-	for i := len(s.Subs[item.Sub.ID]) - 1; i >= 0; i-- {
-		n := s.Subs[item.Sub.ID][i]
-		if n == nil {
-			continue
+	if item.Sub != nil {
+		subID := item.Sub.ID
+		items := slices.DeleteFunc(s.Subs[subID], func(n *MonitoredItem) bool { return n == nil || n.ID == id })
+		if len(items) == 0 {
+			delete(s.Subs, subID)
+		} else {
+			s.Subs[subID] = items
 		}
-		if n.ID == id {
-			s.Subs[item.Sub.ID] = slices.Delete(s.Subs[item.Sub.ID], i, i+1)
-		}
-	}
-	//slices.DeleteFunc(s.Subs[item.Sub.ID], func(i *MonitoredItem) bool { return i.ID == item.ID })
-	if len(s.Subs[item.Sub.ID]) == 0 {
-		delete(s.Subs, item.Sub.ID)
 	}
 }
 
 // function to delete all monitored items associated with a specific sub (as indicated by id number)
 func (s *MonitoredItemService) DeleteSub(id uint32) {
 	s.Mu.Lock()
-	items, ok := s.Subs[id]
-	delete(s.Subs, id)
-	s.Mu.Unlock()
-	if !ok {
-		return
-	}
-	for i := range items {
-		if items[i] != nil {
-			s.DeleteMonitoredItem(items[i].ID)
+	defer s.Mu.Unlock()
+	for _, item := range slices.Clone(s.Subs[id]) {
+		if item != nil {
+			s.deleteMonitoredItemLocked(item.ID)
 		}
 	}
+	delete(s.Subs, id)
 }
 
 func (s *MonitoredItemService) ChangeNotification(n *ua.NodeID) {
@@ -124,12 +100,12 @@ func (s *MonitoredItemService) ChangeNotification(n *ua.NodeID) {
 			val.Value = &ua.DataValue{}
 			val.Value.Status = ua.StatusBad
 			val.Value.EncodingMask |= ua.DataValueStatusCode
-			item.Sub.NotifyChannel <- val
+			item.Sub.Enqueue(val)
 			continue
 		}
 		dv := ns.Attribute(n, item.Req.ItemToMonitor.AttributeID)
 		val.Value = applyTimestampsToReturn(dv, item.TimestampsToReturn)
-		item.Sub.NotifyChannel <- val
+		item.Sub.Enqueue(val)
 	}
 
 }
@@ -170,28 +146,28 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 	if req.TimestampsToReturn > ua.TimestampsToReturnNeither {
 		return &ua.CreateMonitoredItemsResponse{ResponseHeader: responseHeader(req.RequestHeader.RequestHandle, ua.StatusBadTimestampsToReturnInvalid)}, nil
 	}
-	s.Mu.Lock()
-	defer s.Mu.Unlock()
-
 	count := len(req.ItemsToCreate)
 
 	res := make([]*ua.MonitoredItemCreateResult, count)
+	initial := make([]*ua.NodeID, 0, count)
 
 	subID := req.SubscriptionID
 	if s.SubService.srv.cfg.logger != nil {
 		s.SubService.srv.cfg.logger.Debug("Creating monitored items for sub #%d", subID)
 	}
 	s.SubService.Mu.Lock()
+	defer s.SubService.Mu.Unlock()
 	sub, ok := s.SubService.Subs[subID]
-	s.SubService.Mu.Unlock()
 	if !ok {
-		return nil, errors.New("sub doesn't exist")
+		return nil, ua.StatusBadSubscriptionIDInvalid
 	}
 
 	sess := s.SubService.srv.Session(req.RequestHeader)
-	if sub.Session.AuthTokenID.String() != sess.AuthTokenID.String() {
-		return nil, errors.New("not your subscription, bro")
+	if sess == nil || sub.Session != sess {
+		return nil, ua.StatusBadSessionIDInvalid
 	}
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
 
 	for i := range req.ItemsToCreate {
 		itemreq := req.ItemsToCreate[i]
@@ -231,10 +207,7 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 			RevisedQueueSize:        1,
 			FilterResult:            ua.NewExtensionObject(nil),
 		}
-		// do an initial update for the nodeids in the background.
-		// These lock the mutex so we can't do them inline here.
-		// This will cause them to happen once we unlock.
-		go s.ChangeNotification(nodeid)
+		initial = append(initial, nodeid)
 
 	}
 
@@ -251,6 +224,14 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 		DiagnosticInfos: []*ua.DiagnosticInfo{}, //          []*DiagnosticInfo
 	}
 
+	// One worker per request avoids a goroutine per monitored item.
+	if len(initial) > 0 {
+		go func() {
+			for _, nodeid := range initial {
+				s.ChangeNotification(nodeid)
+			}
+		}()
+	}
 	return resp, nil
 
 }
@@ -365,8 +346,7 @@ func (s *MonitoredItemService) DeleteMonitoredItems(sc *uasc.SecureChannel, r ua
 			continue
 		}
 
-		// this function gets the lock so we need to do it in the background so it can happen after our lock is released.
-		go s.DeleteMonitoredItem(id)
+		s.deleteMonitoredItemLocked(id)
 		results[i] = ua.StatusOK
 	}
 

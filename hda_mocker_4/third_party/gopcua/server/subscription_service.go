@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gopcua/opcua/ua"
@@ -15,30 +16,82 @@ import (
 type SubscriptionService struct {
 	srv *Server
 	// pub sub stuff
-	Mu   sync.Mutex
-	Subs map[uint32]*Subscription
+	Mu             sync.Mutex
+	Subs           map[uint32]*Subscription
+	nextID         uint32
+	coalescedTotal atomic.Uint64
+	lastCoalesced  atomic.Int64
+}
+
+type SubscriptionStats struct {
+	Subscriptions        int
+	MonitoredItems       int
+	PendingNotifications int
+	CoalescedTotal       uint64
+	LastCoalesced        time.Time
+}
+
+func (s *SubscriptionService) Stats() SubscriptionStats {
+	s.Mu.Lock()
+	defer s.Mu.Unlock()
+	stats := SubscriptionStats{Subscriptions: len(s.Subs), CoalescedTotal: s.coalescedTotal.Load()}
+	if last := s.lastCoalesced.Load(); last != 0 {
+		stats.LastCoalesced = time.Unix(0, last).UTC()
+	}
+	for _, sub := range s.Subs {
+		stats.PendingNotifications += sub.PendingNotifications()
+	}
+	if s.srv.MonitoredItemService != nil {
+		s.srv.MonitoredItemService.Mu.Lock()
+		stats.MonitoredItems = len(s.srv.MonitoredItemService.Items)
+		s.srv.MonitoredItemService.Mu.Unlock()
+	}
+	return stats
+}
+
+func (s *SubscriptionService) recordCoalesced() {
+	s.coalescedTotal.Add(1)
+	s.lastCoalesced.Store(time.Now().UTC().UnixNano())
 }
 
 // get rid of all references to a subscription and all monitored items that are pointed at this subscription.
 func (s *SubscriptionService) DeleteSubscription(id uint32) {
 	s.Mu.Lock()
-	defer s.Mu.Unlock()
-
 	sub, ok := s.Subs[id]
-	if ok {
-		sub.Mu.Lock()
-		if sub.running {
-			sub.running = false
-			close(sub.shutdown)
-		}
-		sub.Mu.Unlock()
+	if !ok {
+		s.Mu.Unlock()
+		return
 	}
-
 	delete(s.Subs, id)
+	sub.Mu.Lock()
+	if sub.running {
+		sub.running = false
+		close(sub.shutdown)
+	}
+	sub.cancel()
+	sub.Mu.Unlock()
 
-	// ask the monitored item service to purge out any items that use this subscription
+	// CreateMonitoredItems uses the same service-then-items lock order. Keep
+	// the service lock until the associated items have been removed.
 	s.srv.MonitoredItemService.DeleteSub(id)
+	s.Mu.Unlock()
+}
 
+func (s *SubscriptionService) DeleteSessionSubscriptions(session *session) {
+	if session == nil {
+		return
+	}
+	s.Mu.Lock()
+	ids := make([]uint32, 0)
+	for id, sub := range s.Subs {
+		if sub != nil && sub.Session == session {
+			ids = append(ids, id)
+		}
+	}
+	s.Mu.Unlock()
+	for _, id := range ids {
+		s.DeleteSubscription(id)
+	}
 }
 
 // https://reference.opcfoundation.org/Core/Part4/v105/docs/5.13.2
@@ -52,10 +105,18 @@ func (s *SubscriptionService) CreateSubscription(sc *uasc.SecureChannel, r ua.Re
 		return nil, err
 	}
 
+	session := s.srv.Session(req.RequestHeader)
+	if session == nil {
+		return nil, ua.StatusBadSessionIDInvalid
+	}
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
 
-	newsubid := uint32(len(s.Subs)) + 1
+	s.nextID++
+	if s.nextID == 0 {
+		return nil, ua.StatusBadTooManySubscriptions
+	}
+	newsubid := s.nextID
 
 	if s.srv.cfg.logger != nil {
 		s.srv.cfg.logger.Info("New Sub %d for %v", newsubid, sc.RemoteAddr())
@@ -63,7 +124,7 @@ func (s *SubscriptionService) CreateSubscription(sc *uasc.SecureChannel, r ua.Re
 
 	sub := NewSubscription()
 	sub.srv = s
-	sub.Session = s.srv.Session(r.Header())
+	sub.Session = session
 	sub.Channel = sc
 	sub.ID = newsubid
 	sub.RevisedPublishingInterval = req.RequestedPublishingInterval
@@ -210,9 +271,6 @@ func (s *SubscriptionService) DeleteSubscriptions(sc *uasc.SecureChannel, r ua.R
 	}
 	session := s.srv.Session(req.Header())
 
-	s.Mu.Lock()
-	defer s.Mu.Unlock()
-
 	results := make([]ua.StatusCode, len(req.SubscriptionIDs))
 	for i := range req.SubscriptionIDs {
 
@@ -220,18 +278,20 @@ func (s *SubscriptionService) DeleteSubscriptions(sc *uasc.SecureChannel, r ua.R
 		if s.srv.cfg.logger != nil {
 			s.srv.cfg.logger.Info("Subscription %d deleted by client", subid)
 		}
+		s.Mu.Lock()
 		sub, ok := s.Subs[subid]
 		if !ok {
+			s.Mu.Unlock()
 			results[i] = ua.StatusBadSubscriptionIDInvalid
 			continue
 		}
-		if session.AuthTokenID.String() != sub.Session.AuthTokenID.String() {
+		if session == nil || sub.Session != session {
+			s.Mu.Unlock()
 			results[i] = ua.StatusBadSessionIDInvalid
 			continue
 		}
-		// delete subscription gets the lock so we set them up to run in the background
-		// once this function releases its lock
-		go s.DeleteSubscription(subid)
+		s.Mu.Unlock()
+		s.DeleteSubscription(subid)
 		results[i] = ua.StatusOK
 	}
 	return &ua.DeleteSubscriptionsResponse{
@@ -259,8 +319,7 @@ type PubReq struct {
 // This is the type that with its run() function will work in the bakground fullfilling subscription
 // publishes.
 //
-// MonitoredItems will send updates on the NotifyChannel to let the background task know that
-// an event has occured that needs to be published.
+// MonitoredItems enqueue the latest value per client handle for publishing.
 type Subscription struct {
 	srv                       *SubscriptionService
 	Session                   *session
@@ -273,8 +332,11 @@ type Subscription struct {
 	//SeqNums                   map[uint32]struct{}
 	T *time.Ticker
 
-	NotifyChannel chan *ua.MonitoredItemNotification
-	ModifyChannel chan *ua.ModifySubscriptionRequest
+	notifyMu          sync.Mutex
+	pending           map[uint32]*ua.MonitoredItemNotification
+	notifyWake        chan struct{}
+	publishQueueDepth atomic.Int64
+	ModifyChannel     chan *ua.ModifySubscriptionRequest
 
 	// the running flag and shutdown channel are used to signal the background task that it should stop.
 	// multiple places can kill the subscription so make sure you check the running flag using the mutex
@@ -282,15 +344,63 @@ type Subscription struct {
 	Mu       sync.Mutex
 	running  bool
 	shutdown chan struct{}
+	ctx      context.Context
+	cancel   context.CancelFunc
 }
 
 func NewSubscription() *Subscription {
+	ctx, cancel := context.WithCancel(context.Background())
 	return &Subscription{
 		//SeqNums:       map[uint32]struct{}{},
-		NotifyChannel: make(chan *ua.MonitoredItemNotification, 100),
+		pending:       make(map[uint32]*ua.MonitoredItemNotification),
+		notifyWake:    make(chan struct{}, 1),
 		ModifyChannel: make(chan *ua.ModifySubscriptionRequest, 2),
 		shutdown:      make(chan struct{}),
+		ctx:           ctx,
+		cancel:        cancel,
 	}
+}
+
+func (s *Subscription) Enqueue(notification *ua.MonitoredItemNotification) {
+	if notification == nil {
+		return
+	}
+	select {
+	case <-s.shutdown:
+		return
+	default:
+	}
+	s.notifyMu.Lock()
+	if _, exists := s.pending[notification.ClientHandle]; exists && s.srv != nil {
+		s.srv.recordCoalesced()
+	}
+	s.pending[notification.ClientHandle] = notification
+	s.notifyMu.Unlock()
+	select {
+	case s.notifyWake <- struct{}{}:
+	default:
+	}
+}
+
+func (s *Subscription) PendingNotifications() int {
+	s.notifyMu.Lock()
+	pending := len(s.pending)
+	s.notifyMu.Unlock()
+	return pending + int(s.publishQueueDepth.Load())
+}
+
+func (s *Subscription) collectNotifications(queue map[uint32]*ua.MonitoredItemNotification) {
+	s.notifyMu.Lock()
+	pending := s.pending
+	s.pending = make(map[uint32]*ua.MonitoredItemNotification)
+	s.notifyMu.Unlock()
+	for handle, notification := range pending {
+		if _, exists := queue[handle]; exists && s.srv != nil {
+			s.srv.recordCoalesced()
+		}
+		queue[handle] = notification
+	}
+	s.publishQueueDepth.Store(int64(len(queue)))
 }
 
 func (s *Subscription) Update(req *ua.ModifySubscriptionRequest) {
@@ -329,7 +439,9 @@ func (s *Subscription) keepalive(pubreq PubReq) error {
 		Results:                  []ua.StatusCode{},
 		DiagnosticInfos:          []*ua.DiagnosticInfo{},
 	}
-	err := s.Channel.SendResponseWithContext(context.Background(), pubreq.ID, response)
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
+	err := s.Channel.SendResponseWithContext(ctx, pubreq.ID, response)
 	if err != nil {
 		return err
 	}
@@ -340,6 +452,7 @@ func (s *Subscription) keepalive(pubreq PubReq) error {
 // to the client at the correct rate assuming there are publish requests queued up.
 // if the function returns it deletes the subscription
 func (s *Subscription) run() {
+	defer s.publishQueueDepth.Store(0)
 	// if this go routine dies, we need to delete ourselves.
 	defer func() {
 		if s.srv.srv.cfg.logger != nil {
@@ -376,8 +489,8 @@ func (s *Subscription) run() {
 			select {
 			case <-s.shutdown:
 				return
-			case newNotification := <-s.NotifyChannel:
-				publishQueue[newNotification.ClientHandle] = newNotification
+			case <-s.notifyWake:
+				s.collectNotifications(publishQueue)
 			case <-s.T.C:
 				if len(publishQueue) == 0 {
 					// nothing to publish, increment the keepalive counter and send a keepalive if it
@@ -423,8 +536,8 @@ func (s *Subscription) run() {
 			case pubreq = <-s.Session.PublishRequests:
 				// once we get a publish request, we should move on to publish them back
 				break L2
-			case newNotification := <-s.NotifyChannel:
-				publishQueue[newNotification.ClientHandle] = newNotification
+			case <-s.notifyWake:
+				s.collectNotifications(publishQueue)
 
 			case <-s.T.C:
 				// we had another tick without a publish request.
@@ -439,6 +552,7 @@ func (s *Subscription) run() {
 		}
 		lifetime_counter = 0
 		keepalive_counter = 0
+		s.collectNotifications(publishQueue)
 
 		s.SequenceID++
 		if s.SequenceID == 0 {
@@ -493,7 +607,9 @@ func (s *Subscription) run() {
 			Results:                  []ua.StatusCode{},
 			DiagnosticInfos:          []*ua.DiagnosticInfo{},
 		}
-		err := s.Channel.SendResponseWithContext(context.Background(), pubreq.ID, response)
+		ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+		err := s.Channel.SendResponseWithContext(ctx, pubreq.ID, response)
+		cancel()
 		if err != nil {
 			if s.srv.srv.cfg.logger != nil {
 				s.srv.srv.cfg.logger.Error("problem sending channel response: %v", err)
@@ -504,6 +620,7 @@ func (s *Subscription) run() {
 		if s.srv.srv.cfg.logger != nil {
 			s.srv.srv.cfg.logger.Debug("Published %d items OK for %d", len(publishQueue), s.ID)
 		}
+		s.publishQueueDepth.Store(0)
 		// wait till we've got a publish request.
 	}
 }
