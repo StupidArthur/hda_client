@@ -1,6 +1,6 @@
 # hda_mocker_4
 
-HDA Mocker 4 v1.4.2 is a pure command-line application. The Wails desktop UI and embedded frontend have been removed. Pass `--config` to start a preset; startup progress and errors are printed to the console and saved under `logs/` beside the executable.
+HDA Mocker 4 v1.4.3 is a pure command-line application. The Wails desktop UI and embedded frontend have been removed. Pass `--config` to start a preset; startup progress and errors are printed to the console and saved under `logs/` beside the executable.
 
 中文详细文档：
 
@@ -8,6 +8,7 @@ HDA Mocker 4 v1.4.2 is a pure command-line application. The Wails desktop UI and
 - [数据集提交规范](docs/HDA_MOCKER_4_DATASET_SUBMISSION_RULE.md)
 - [使用手册](docs/HDA_MOCKER_4_MANUAL.md)
 - [v1.4.1 / v1.4.2 更新说明](docs/HDA_MOCKER_4_RELEASE_1_4_1_1_4_2.md)
+- [v1.4.3 监控项日志说明](docs/HDA_MOCKER_4_RELEASE_1_4_3.md)
 
 This preset is a file-based OPC UA Historical Access mocker. Go owns the
 DuckDB history database, import, playback, UA Read/Subscribe and raw

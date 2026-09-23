@@ -1,7 +1,10 @@
 package server
 
 import (
+	"log"
+	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -134,16 +137,64 @@ type MonitoredItem struct {
 // operation-level result codes such as Bad_NodeIdUnknown. Once implemented,
 // client failure-mode tests (e.g. a rejected item during subscription
 // recreation) could run against this server instead of an integration fixture.
-func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua.Request, reqID uint32) (ua.Response, error) {
+func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua.Request, reqID uint32) (response ua.Response, serviceErr error) {
 	if s.SubService.srv.cfg.logger != nil {
 		s.SubService.srv.cfg.logger.Debug("Handling %T", r)
 	}
 
+	stage := "decode request"
+	itemIndex := -1
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			log.Printf("opcua CreateMonitoredItems panic request_id=%d stage=%s item_index=%d panic=%v\n%s", reqID, stage, itemIndex, recovered, debug.Stack())
+			panic(recovered)
+		}
+		if serviceErr != nil {
+			log.Printf("opcua CreateMonitoredItems failed request_id=%d stage=%s item_index=%d error=%v", reqID, stage, itemIndex, serviceErr)
+		}
+	}()
 	req, err := safeReq[*ua.CreateMonitoredItemsRequest](r)
 	if err != nil {
 		return nil, err
 	}
+	remote := "unknown"
+	if sc != nil && sc.RemoteAddr() != nil {
+		remote = sc.RemoteAddr().String()
+	}
+	preview := make([]string, 0, 5)
+	for _, item := range req.ItemsToCreate {
+		if len(preview) == cap(preview) {
+			break
+		}
+		if item == nil || item.ItemToMonitor == nil || item.ItemToMonitor.NodeID == nil {
+			preview = append(preview, "<nil>")
+		} else {
+			preview = append(preview, item.ItemToMonitor.NodeID.String())
+		}
+	}
+	var handle uint32
+	sessionID := "unknown"
+	if req.RequestHeader != nil {
+		handle = req.RequestHeader.RequestHandle
+		if sess := s.SubService.srv.Session(req.RequestHeader); sess != nil && sess.ID != nil {
+			sessionID = sess.ID.String()
+		}
+	}
+	var sampling float64
+	var queue uint32
+	var mode ua.MonitoringMode
+	if len(req.ItemsToCreate) > 0 && req.ItemsToCreate[0] != nil {
+		first := req.ItemsToCreate[0]
+		mode = first.MonitoringMode
+		if first.RequestedParameters != nil {
+			sampling = first.RequestedParameters.SamplingInterval
+			queue = first.RequestedParameters.QueueSize
+		}
+	}
+	log.Printf("opcua CreateMonitoredItems request remote=%s session_id=%s request_id=%d handle=%d subscription_id=%d count=%d timestamps=%v first_sampling_ms=%g first_queue_size=%d first_mode=%v node_ids=[%s]", remote, sessionID, reqID, handle, req.SubscriptionID, len(req.ItemsToCreate), req.TimestampsToReturn, sampling, queue, mode, strings.Join(preview, ", "))
+	stage = "validate timestamps"
 	if req.TimestampsToReturn > ua.TimestampsToReturnNeither {
+		log.Printf("opcua CreateMonitoredItems rejected request_id=%d stage=%s status=%v", reqID, stage, ua.StatusBadTimestampsToReturnInvalid)
 		return &ua.CreateMonitoredItemsResponse{ResponseHeader: responseHeader(req.RequestHeader.RequestHandle, ua.StatusBadTimestampsToReturnInvalid)}, nil
 	}
 	count := len(req.ItemsToCreate)
@@ -155,6 +206,7 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 	if s.SubService.srv.cfg.logger != nil {
 		s.SubService.srv.cfg.logger.Debug("Creating monitored items for sub #%d", subID)
 	}
+	stage = "lookup subscription"
 	s.SubService.Mu.Lock()
 	defer s.SubService.Mu.Unlock()
 	sub, ok := s.SubService.Subs[subID]
@@ -162,6 +214,7 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 		return nil, ua.StatusBadSubscriptionIDInvalid
 	}
 
+	stage = "validate session"
 	sess := s.SubService.srv.Session(req.RequestHeader)
 	if sess == nil || sub.Session != sess {
 		return nil, ua.StatusBadSessionIDInvalid
@@ -170,6 +223,8 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 	defer s.Mu.Unlock()
 
 	for i := range req.ItemsToCreate {
+		stage = "create monitored item"
+		itemIndex = i
 		itemreq := req.ItemsToCreate[i]
 		nodeid := itemreq.ItemToMonitor.NodeID
 		item := MonitoredItem{
@@ -210,6 +265,7 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 		initial = append(initial, nodeid)
 
 	}
+	itemIndex = -1
 
 	resp := &ua.CreateMonitoredItemsResponse{
 		ResponseHeader: &ua.ResponseHeader{
@@ -232,6 +288,7 @@ func (s *MonitoredItemService) CreateMonitoredItems(sc *uasc.SecureChannel, r ua
 			}
 		}()
 	}
+	log.Printf("opcua CreateMonitoredItems completed request_id=%d subscription_id=%d created=%d", reqID, subID, len(res))
 	return resp, nil
 
 }

@@ -1,15 +1,15 @@
-# HDA Mocker 4 v1.4.2 CLI 交付说明
+# HDA Mocker 4 v1.4.3 CLI 交付说明
 
-在已有生产目录中替换 exe 时，请先停止旧进程，保留原有配置、Parquet 数据及 `runtime/` 数据库，再用 `hda_mocker_4_v1.4.2.exe --config <配置文件路径>` 启动。CLI 会在当前控制台打印运行信息，同时在 exe 同级创建 `logs/`。
+在已有生产目录中替换 exe 时，请先停止旧进程，保留原有配置、Parquet 数据及 `runtime/` 数据库，再用 `hda_mocker_4_v1.4.3.exe --config <配置文件路径>` 启动。CLI 会在当前控制台打印运行信息，同时在 exe 同级创建 `logs/`。
 
 ## 启动
 
 每套场景测试数据集是 `presets/` 下的一个独立 preset。选择要运行的场景目录：
 
 ```powershell
-.\hda_mocker_4_v1.4.2.exe --version
-.\hda_mocker_4_v1.4.2.exe --config presets\hda_all\config.yaml
-.\hda_mocker_4_v1.4.2.exe --config presets\dynamic_data_all\config.yaml
+.\hda_mocker_4_v1.4.3.exe --version
+.\hda_mocker_4_v1.4.3.exe --config presets\hda_all\config.yaml
+.\hda_mocker_4_v1.4.3.exe --config presets\dynamic_data_all\config.yaml
 ```
 
 数据集清单与场景说明见 `presets/README.md`。
@@ -17,7 +17,7 @@
 启动日志第一行必须包含：
 
 ```text
-HDA Mocker 4 v1.4.2 starting
+HDA Mocker 4 v1.4.3 starting
 ```
 
 配置中的 `opc.tcp://0.0.0.0:18980` 表示监听本机所有网卡。客户端使用生产机
@@ -26,7 +26,7 @@ HDA Mocker 4 v1.4.2 starting
 
 ## 必需文件
 
-- `hda_mocker_4_v1.4.2.exe`
+- `hda_mocker_4_v1.4.3.exe`
 - `presets/<数据集>/config.yaml`
 - `presets/<数据集>/hda/*.parquet`
 - `presets/<数据集>/da/*.parquet`

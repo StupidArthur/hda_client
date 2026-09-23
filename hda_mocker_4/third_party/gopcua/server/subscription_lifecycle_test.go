@@ -1,12 +1,43 @@
 package server
 
 import (
+	"bytes"
+	"log"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/gopcua/opcua/ua"
 	"github.com/gopcua/opcua/uasc"
 )
+
+func TestCreateMonitoredItemsFailureLogsRequestContext(t *testing.T) {
+	_, _, items, sess := lifecycleServer()
+	var output bytes.Buffer
+	previous := log.Writer()
+	log.SetOutput(&output)
+	t.Cleanup(func() { log.SetOutput(previous) })
+	_, err := items.CreateMonitoredItems(nil, &ua.CreateMonitoredItemsRequest{
+		RequestHeader:  &ua.RequestHeader{AuthenticationToken: sess.AuthTokenID, RequestHandle: 42},
+		SubscriptionID: 277,
+		ItemsToCreate: []*ua.MonitoredItemCreateRequest{{
+			ItemToMonitor:       &ua.ReadValueID{NodeID: ua.NewStringNodeID(4, "TI1302.PV")},
+			MonitoringMode:      ua.MonitoringModeReporting,
+			RequestedParameters: &ua.MonitoringParameters{SamplingInterval: 500, QueueSize: 2},
+		}},
+	}, 99)
+	if err != ua.StatusBadSubscriptionIDInvalid {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, part := range []string{"request_id=99", "handle=42", "subscription_id=277", "count=1", "ns=4;s=TI1302.PV", "first_sampling_ms=500", "first_queue_size=2", "stage=lookup subscription", "failed"} {
+		if !strings.Contains(output.String(), part) {
+			t.Errorf("missing %q in log: %s", part, output.String())
+		}
+	}
+	if strings.Contains(output.String(), sess.AuthTokenID.String()) {
+		t.Fatalf("authentication token leaked in log: %s", output.String())
+	}
+}
 
 func lifecycleServer() (*Server, *SubscriptionService, *MonitoredItemService, *session) {
 	srv := &Server{cfg: &serverConfig{}, sb: newSessionBroker(nil)}

@@ -1,6 +1,6 @@
 # HDA Mocker 4 CLI 手册
 
-HDA Mocker 4 v1.4.2 是纯命令行程序。启动时必须通过 `--config` 指定配置文件；进程在当前控制台显示启动阶段、运行状态和错误，同时把应用日志写入 exe 同级的 `logs/hda_mocker_4.log`。
+HDA Mocker 4 v1.4.3 是纯命令行程序。启动时必须通过 `--config` 指定配置文件；进程在当前控制台显示启动阶段、运行状态和错误，同时把应用日志写入 exe 同级的 `logs/hda_mocker_4.log`。
 
 ## 启动
 
