@@ -1,0 +1,53 @@
+# UA Auth Lab - UserName ONLY
+#
+#   opc.tcp://0.0.0.0:48632/ua_auth/
+#
+# 只开放 UserName（test/test）。Anonymous / X.509 User 均不发布 token，
+# 用于验证「未开放的认证方式被拒绝」。
+# 启动: python main.py configs/username_only.yaml
+
+scenario: username_only
+
+server: "0.0.0.0"
+port: 48632
+endpoint_path: "/ua_auth/"
+cycle: 1000
+namespace_index: 1
+
+application:
+  name: "UA Auth Lab (username only)"
+  uri: "urn:ua-auth-lab:server"
+
+security:
+  policies:
+    - Basic256Sha256_SignAndEncrypt
+  discovery: true
+  require_secured_session: true
+  application_certificate:
+    cert: "../test_material/certs/server_cert.pem"
+    private_key: "../test_material/certs/server_key.pem"
+  trust_store: "../test_material/certs/trust"
+
+user_auth:
+  anonymous: false
+  username: true
+  users:
+    - username: "test"
+      password: "test"
+  x509: false
+  x509_validation: direct
+  x509_user_cert:
+    - "../test_material/certs/user_cert.pem"
+
+nodes:
+  - name: "int32_ch_"
+    type: Int32
+    count: 2
+    change: true
+    writable: false
+  - name: "double_wr_"
+    type: Double
+    count: 2
+    default: 0.0
+    change: false
+    writable: true

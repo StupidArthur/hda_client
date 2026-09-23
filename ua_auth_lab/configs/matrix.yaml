@@ -1,0 +1,130 @@
+# UA Auth Lab —— 全拆（方案 A）矩阵定义
+#
+# 本文件是"一端口一场景"矩阵的唯一真源：tools/gen_matrix_configs.py 读取它，
+# 生成 33 个端口配置（configs/matrix/*.yaml）+ 清单（configs/matrix/manifest.json）。
+# 改端口起点 / 增删策略 / 改认证方式，只需改这里再重新生成。
+#
+# 重新生成:
+#   python tools/gen_matrix_configs.py
+#
+# 启停:
+#   python tools/matrix_ctl.py start      # 启动全部端口
+#   python tools/matrix_ctl.py status     # 查看监听状态
+#   python tools/matrix_ctl.py stop       # 停止全部端口
+#
+# 测试:
+#   python tests/matrix_port_tests.py
+#
+# 矩阵规模 = 端点组合 × 认证方式
+#   端点组合 11 个 = None/None + 5 SecurityPolicy × (Sign, SignAndEncrypt)
+#   认证方式 3 个 = anon / username / x509
+#   => 33 个端口，每个端口只开放 1 种认证 + 1 种端点组合，其余一律验证失败
+
+# ---- 端口规划（可配置）----------------------------------------------------
+base_port: 48730        # 起始端口
+port_step: 1            # 相邻端口间隔（留空隙便于插入新组合时不必全量重排）
+endpoint_path: "/ua_auth/"
+
+# 客户端连接/清单 url 里用的主机（远程验证用，不能是 127.0.0.1）。
+# 服务端绑定不受此项影响 —— 服务端固定 server: 0.0.0.0（绑全部网卡），
+# 因此改这里只需要重新生成清单，**不需要重启任何端口**。
+# 换机器/换地址时只改这一行再跑 tools/gen_matrix_configs.py 即可。
+client_host: "10.30.70.77"
+
+# ---- 生成后的组态通用项 ---------------------------------------------------
+cycle: 1000
+namespace_index: 1
+read_node: "ns=1;s=int32_ch_1"   # 正向测试要读的节点
+
+# 每个端口抽样的负向用例数量（1 = 只验认证隔离；2 = 认证隔离 + 端点隔离）
+negative_samples: 2
+
+# "None/None + x509/username" 端口注入的签名/加密策略（须被服务端与客户端同时支持）。
+# 仅用于提供 X509 token 签名算法 / 避免密码明文；对外仍只暴露 None/None 端点。
+signing_policy: "Basic256Sha256"
+
+application:
+  name: "UA Auth Lab (matrix port)"
+  uri: "urn:ua-auth-lab:server"
+
+# 注意：以下证书路径是相对【生成出的组态文件所在目录 configs/matrix/】的，
+# 因此写 ../../test_material/...（config_loader 按组态文件目录解析相对路径）。
+security:
+  trust_store: "../../test_material/certs/trust"
+  application_certificate:
+    cert: "../../test_material/certs/server_cert.pem"
+    private_key: "../../test_material/certs/server_key.pem"
+  # 客户端 Application Certificate 校验模式（详见文件末尾 open_ports 说明）：
+  #   trusted = 校验时间/URI/KeyUsage/EKU + 必须受信（只认 trust_store）
+  #   basic   = 校验时间/URI/KeyUsage/EKU，但不查信任目录
+  #   none    = 完全不校验
+  # 核心 33 端口固定 trusted；开放端口块由 open_ports 覆盖为 basic / none。
+  client_cert_validation: "trusted"
+
+# ---- 端点组合（11 个，覆盖 OPC UA Part 7 全部合法组合）--------------------
+# policy 取值须同时被服务端 POLICY_NAME_TO_TYPE 与客户端 POLICY_CLASSES 支持，
+# 生成器会校验（生成前即报错）。
+# deprecated: true 仅作标注，不影响生成（这些策略 OPC Foundation 已在 1.04 标废弃，
+# 但仍是标准定义的合法策略，第三方客户端会列出）。
+endpoints:
+  - {policy: "None",                mode: "None"}
+  - {policy: "Basic128Rsa15",       mode: "Sign",            deprecated: true}
+  - {policy: "Basic128Rsa15",       mode: "SignAndEncrypt",  deprecated: true}
+  - {policy: "Basic256",            mode: "Sign",            deprecated: true}
+  - {policy: "Basic256",            mode: "SignAndEncrypt",  deprecated: true}
+  - {policy: "Basic256Sha256",      mode: "Sign"}
+  - {policy: "Basic256Sha256",      mode: "SignAndEncrypt"}
+  - {policy: "Aes128Sha256RsaOaep", mode: "Sign"}
+  - {policy: "Aes128Sha256RsaOaep", mode: "SignAndEncrypt"}
+  - {policy: "Aes256Sha256RsaPss",  mode: "Sign"}
+  - {policy: "Aes256Sha256RsaPss",  mode: "SignAndEncrypt"}
+
+# ---- 认证方式（3 种，各自独立开关）---------------------------------------
+# user_auth 的三个布尔位直接决定该端口发布哪些 UserIdentityToken。
+auths:
+  - name: "anon"
+    user_auth: {anonymous: true,  username: false, x509: false}
+  - name: "username"
+    user_auth: {anonymous: false, username: true,  x509: false}
+  - name: "x509"
+    user_auth: {anonymous: false, username: false, x509: true}
+
+# ---- 认证材料（所有端口共用，开关决定是否生效）----------------------------
+users:
+  - {username: "test", password: "test"}
+
+x509:
+  # 注意：过期证书一并注册，用于负向"过期但已注册"用例（有效期检查会拒）。
+  user_cert:
+    - "../../test_material/certs/user_cert.pem"
+    - "../../test_material/certs/user_expired_cert.pem"
+  user_name: "x509_user"
+
+# ---- 测试节点 -------------------------------------------------------------
+nodes:
+  - {name: "int32_ch_",  type: Int32,    count: 2, change: true,  writable: false}
+  - {name: "int32_wr_",  type: Int32,    count: 2, default: 0,    change: false, writable: true}
+  - {name: "double_ch_", type: Double,   count: 2, change: true,  writable: false}
+  - {name: "double_wr_", type: Double,   count: 2, default: 0.0,  change: false, writable: true}
+  - {name: "string_ch_", type: String,   count: 2, change: true,  writable: false}
+  - {name: "bool_wr_",   type: Boolean,  count: 2, default: false, change: false, writable: true}
+
+# ---- 开放接入端口块（客户端应用证书不查信任）------------------------------
+# 目的：让"任意客户端"（UaExpert / 产品端 data-hub / 任何自签证书）能远程接入
+#       验证，而不必先把它的证书加进 trust_store。
+#
+# 现有 33 个"核心端口"固定 client_cert_validation=trusted（严格：只认
+# trust_store 里的 CA/证书）。本块额外生成宽松校验端口，核心端口一个不动。
+#
+#   basic = 不查信任目录，但仍校验：证书有效期 + ApplicationUri 与证书 SAN 一致
+#   none  = 完全不校验客户端应用证书（任何证书、含过期证书，都能建 Session）
+#
+# 只铺 anon / username：x509 认证的用户证书还要过 DER 白名单，任意客户端即使
+# 过了应用证书这一关也照样进不去，铺了没意义。
+#
+# 端口编排：validation 优先（basic 块在前、none 块在后），块内按 端点 × 认证 排。
+# 规模 = 11 端点 × 2 认证 × len(validations) = 44（48770..48813）。
+open_ports:
+  base_port: 48770
+  validations: ["basic", "none"]
+  auths: ["anon", "username"]

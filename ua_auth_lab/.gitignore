@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# 虚拟环境（不提交）
+.venv/
+
+# 运行日志 / 进程文件
+*.log
+*.pid
+configs/matrix/.pids.json

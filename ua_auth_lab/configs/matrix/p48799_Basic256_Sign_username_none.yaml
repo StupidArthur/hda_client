@@ -1,0 +1,67 @@
+# UA Auth Lab 全拆矩阵端口（自动生成，勿手改）
+# 端口: 48799  端点: Basic256 / Sign  (deprecated)
+# 认证: username（该端口只开放这一种）
+# 应用证书: 不校验（任意客户端均可接入）
+# 源: matrix.yaml  重新生成: python tools/gen_matrix_configs.py
+# 启动: python main.py configs/matrix/p48799_Basic256_Sign_username_none.yaml
+
+scenario: matrix_Basic256_Sign_username_none
+server: 0.0.0.0
+port: 48799
+endpoint_path: /ua_auth/
+cycle: 1000
+namespace_index: 1
+application:
+  name: UA Auth Lab (matrix port)
+  uri: urn:ua-auth-lab:server
+security:
+  trust_store: ../../test_material/certs/trust
+  application_certificate:
+    cert: ../../test_material/certs/server_cert.pem
+    private_key: ../../test_material/certs/server_key.pem
+  client_cert_validation: none
+  policies:
+  - Basic256_Sign
+  discovery: true
+  require_secured_session: true
+user_auth:
+  anonymous: false
+  username: true
+  x509: false
+  users:
+  - username: test
+    password: test
+nodes:
+- name: int32_ch_
+  type: Int32
+  count: 2
+  change: true
+  writable: false
+- name: int32_wr_
+  type: Int32
+  count: 2
+  default: 0
+  change: false
+  writable: true
+- name: double_ch_
+  type: Double
+  count: 2
+  change: true
+  writable: false
+- name: double_wr_
+  type: Double
+  count: 2
+  default: 0.0
+  change: false
+  writable: true
+- name: string_ch_
+  type: String
+  count: 2
+  change: true
+  writable: false
+- name: bool_wr_
+  type: Boolean
+  count: 2
+  default: false
+  change: false
+  writable: true
