@@ -1,0 +1,15 @@
+{
+  "source": "时间戳_整理后_25位号_原始观测.csv",
+  "source_sha256": "88f2ed0ff5c58d3f428c7a5031a2c6f66192473943b6974a9f9673b54acb9342",
+  "source_timezone": "Asia/Shanghai",
+  "timezone": "UTC",
+  "rows": 103547,
+  "tags": 25,
+  "observations": 243248,
+  "start": "2026-10-13T05:44:29.578000+00:00",
+  "end": "2026-10-16T05:57:23.634000+00:00",
+  "hda_nulls": "skip",
+  "da_nulls": "hold last, circular initialization",
+  "tick_ms": 100,
+  "loop_gap_ms": 100
+}

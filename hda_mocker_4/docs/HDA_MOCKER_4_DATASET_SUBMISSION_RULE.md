@@ -1,5 +1,7 @@
 # HDA Mocker 4 数据集提交规范
 
+**v1.5.0 更新：** [统一版规则](HDA_MOCKER_4_RELEASE_1_5_0.md) 优先于下文旧约定。空且未标 Bad 表示无观测；显式 Bad 可无值；DA 可带 UTC Timestamp；无 HDA 质量覆盖时沿用 DA 质量。迁移须使用新 runtime。
+
 本文对应 `hda_mocker_4 v1.2.1`，供数据集制作方和验收方使用。提交物必须是 Parquet 文件以及对应的播放配置，不接受把 CSV、Excel 或 DuckDB 文件直接放入运行目录。
 
 ## 1. 提交目录

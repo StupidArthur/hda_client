@@ -67,6 +67,24 @@ func (s *Store) init() error {
 			return e
 		}
 	}
+	var semantics string
+	err := s.db.QueryRow("SELECT value FROM state WHERE key='observation_semantics'").Scan(&semantics)
+	if err == sql.ErrNoRows {
+		var count int64
+		if err = s.db.QueryRow("SELECT count(*) FROM samples").Scan(&count); err != nil {
+			return err
+		}
+		if count > 0 {
+			return fmt.Errorf("legacy runtime database: v1.5.0 requires a fresh runtime directory after dataset migration; preserve the old database as backup")
+		}
+		if _, err = s.db.Exec("INSERT INTO state VALUES ('observation_semantics','v1.5')"); err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if semantics != "v1.5" {
+		return fmt.Errorf("unsupported observation semantics: %s", semantics)
+	}
 	if _, e := s.db.Exec(`INSERT INTO state(key,value) VALUES ('last_batch','0') ON CONFLICT(key) DO NOTHING`); e != nil {
 		return e
 	}
@@ -211,7 +229,7 @@ func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progre
 			if statusCol, ok := f.StatusCols[name]; ok {
 				quality = uaStatusSQL(quoteIdent(statusCol))
 			}
-			parts = append(parts, fmt.Sprintf("SELECT ?::BIGINT AS tag_id, epoch_us(Timestamp)::BIGINT AS ts, CASE WHEN %s IS NULL OR isnan(%s) OR isinf(%s) THEN NULL ELSE %s END AS value, CASE WHEN %s IS NULL OR isnan(%s) OR isinf(%s) THEN 2150760448 ELSE %s END AS quality, 'import' AS origin, ?::BIGINT AS batch_id FROM src", col, col, col, col, col, col, col, quality))
+			parts = append(parts, fmt.Sprintf("SELECT ?::BIGINT AS tag_id, epoch_us(Timestamp)::BIGINT AS ts, CASE WHEN isfinite(%s) THEN %s ELSE NULL END AS value, %s AS quality, 'import' AS origin, ?::BIGINT AS batch_id FROM src WHERE isfinite(%s) OR (%s & 2147483648) <> 0", col, col, quality, col, quality))
 			args = append(args, m[name].ID, batch)
 		}
 		q := "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS (" + strings.Join(parts, " UNION ALL ") + ") SELECT count(*) FROM incoming i JOIN samples s ON s.tag_id=i.tag_id AND s.ts=i.ts WHERE NOT ((i.value IS NULL AND s.value IS NULL) OR i.value=s.value) OR i.quality<>s.quality"
@@ -229,7 +247,12 @@ func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progre
 			tx.Rollback()
 			return total, e
 		}
-		total.Samples += f.Rows * int64(len(f.Tags))
+		var observed int64
+		if e = tx.QueryRowContext(ctx, "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS ("+strings.Join(parts, " UNION ALL ")+") SELECT count(*) FROM incoming", args...).Scan(&observed); e != nil {
+			tx.Rollback()
+			return total, e
+		}
+		total.Samples += observed
 		if _, e = tx.Exec("INSERT INTO imports(path,sha256,rows,completed,imported_at) VALUES (?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET sha256=excluded.sha256,rows=excluded.rows,completed=excluded.completed,imported_at=excluded.imported_at", f.Path, sha, f.Rows, true, time.Now().UTC().UnixMicro()); e != nil {
 			tx.Rollback()
 			return total, e
@@ -242,7 +265,7 @@ func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progre
 		if progress != nil {
 			progress(total, f)
 		}
-		log.Printf("import complete file=%s samples=%d elapsed=%s", filepath.Base(f.Path), f.Rows*int64(len(f.Tags)), time.Since(started))
+		log.Printf("import complete file=%s samples=%d elapsed=%s", filepath.Base(f.Path), observed, time.Since(started))
 	}
 	total.Elapsed = time.Since(started)
 	return total, nil
@@ -543,12 +566,14 @@ func (s *Store) writeLiveAndState(vals map[string]any, ts time.Time, batch int64
 			tx.Rollback()
 			return nil, fmt.Errorf("unknown DA tag %q", n)
 		}
-		fv, q := normalizeValue(v)
+		fv, _ := normalizeValue(v)
+		q := uint32(0)
 		if cell, ok := v.(replayValue); ok {
 			fv, q = normalizeValue(cell.HDAValue)
-			if fv != nil {
-				q = normalizeUAStatus(cell.HDAStatus)
-			}
+			q = normalizeUAStatus(cell.HDAStatus)
+		}
+		if fv == nil && q&0x80000000 == 0 {
+			continue
 		}
 		if _, e = tx.Exec(`INSERT INTO samples(tag_id,ts,value,quality,origin,batch_id) VALUES (?,?,?,?,?,?)`, t.ID, ts.UTC().UnixMicro(), fv, q, "live", batch); e != nil {
 			tx.Rollback()

@@ -180,12 +180,17 @@ func (c *RuntimeController) diagnosticMaps() (map[string]any, map[string]any) {
 	if last.IsZero() {
 		status = "warn"
 		message = fmt.Sprintf("等待首轮DA播放和HDA入库；期望位号 %d；UA会话 %d", snapshot.DATagCount, len(sessions))
-	} else if daCount < expectedCount || hdaCount < expectedCount {
-		status = "warn"
 	}
 	if !subscriptions.LastCoalesced.IsZero() && time.Since(subscriptions.LastCoalesced) < time.Minute {
 		status = "warn"
 		message += fmt.Sprintf("；近一分钟订阅通知发生合并，累计 %d 次", subscriptions.CoalescedTotal)
+	}
+	for _, file := range runtime.playback.Snapshot() {
+		if file.LastError != "" {
+			status = "error"
+			message = "playback error: " + file.LastError
+			break
+		}
 	}
 	diag["status"], diag["message"] = status, message
 	return info, diag

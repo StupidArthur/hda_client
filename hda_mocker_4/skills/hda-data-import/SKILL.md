@@ -1,5 +1,9 @@
 # HDA/DA 数据导入约束
 
+## v1.5.0 优先规则
+
+执行数据导入前读取 [统一版规则](../../docs/HDA_MOCKER_4_RELEASE_1_5_0.md)，与下文旧版描述冲突时以统一版为准：无值且未标 Bad 为无观测，跳过 HDA 并保持 DA；显式 Bad 保留原质量（可无值）。DA 可带 UTC Timestamp 进行100ms检查的时间轴播放。无 HDA 覆盖列时沿用 DA 实际观测值及质量。旧 runtime 必须备份后在新目录重建，不自动复用。
+
 ## 当前列约定
 
 HDA Parquet 使用 `Timestamp`、`tag` 和可选 `tag.__status`。DA Parquet 使用

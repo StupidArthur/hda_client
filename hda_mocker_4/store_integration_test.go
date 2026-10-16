@@ -142,7 +142,7 @@ func TestStatusesAndSeparateDAHDAPlayback(t *testing.T) {
 	}{
 		{"tag_bad", ptr(11), uint32(ua.StatusBadNoCommunication), uint32(ua.StatusOK), 11},
 		{"tag_wrong", ptr(999), uint32(ua.StatusBadDeviceFailure), uint32(ua.StatusOK), 12},
-		{"tag_empty", nil, uint32(ua.StatusBadWaitingForInitialData), uint32(ua.StatusOK), 13},
+		{"tag_empty", nil, uint32(ua.StatusBadNoCommunication), uint32(ua.StatusOK), 13},
 		{"tag_diff", ptr(14), uint32(ua.StatusUncertainLastUsableValue), uint32(ua.StatusBadOutOfService), 15},
 		{"tag_default", ptr(16), uint32(ua.StatusOK), uint32(ua.StatusOK), 16},
 	}

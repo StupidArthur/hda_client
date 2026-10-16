@@ -1,6 +1,8 @@
 # hda_mocker_4
 
-HDA Mocker 4 v1.4.3 is a pure command-line application. The Wails desktop UI and embedded frontend have been removed. Pass `--config` to start a preset; startup progress and errors are printed to the console and saved under `logs/` beside the executable.
+HDA Mocker 4 v1.5.0 is the unified CLI for fixed-period and timestamp playback. Read [v1.5.0 rules and migration](docs/HDA_MOCKER_4_RELEASE_1_5_0.md) before upgrading. Pass `--config` to start; logs are saved beside the executable.
+
+旧版现场组态升级请阅读：[v1.4.3 及之前版本升级到 v1.5.0](docs/HDA_MOCKER_4_UPGRADE_TO_1_5_0.md)。
 
 中文详细文档：
 
@@ -23,8 +25,7 @@ columns plus optional `tag.__status`, `tag.__hda_value`, and
 `tag.__hda_status` columns. Status values are complete OPC UA StatusCodes
 (`UInt32`, 0..4294967295).
 A missing status column defaults to 0 (`StatusGood`); a missing `__hda_value` uses
-`tag`. A NULL status cell is rejected, while NULL/NaN/Inf values intentionally
-produce no value with `BadWaitingForInitialData`.
+`tag`. History quality follows DA quality unless explicitly overridden. A NULL status cell is rejected. NULL/NaN/Inf without explicit Bad means no observation: skip history and hold DA. Explicit Bad is retained even with no value. DA may include UTC `Timestamp` for source-relative playback.
 
 During playback, `tag`/`__status` is returned by DA and
 `__hda_value`/`__hda_status` is written to HDA. This permits DA errors and

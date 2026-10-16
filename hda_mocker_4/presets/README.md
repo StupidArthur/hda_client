@@ -1,5 +1,7 @@
 # HDA Mocker 4 场景测试数据集
 
+v1.5.0 新增 `basf_dirty` 时间轴场景（25位号、243248历史观测，默认4841端口）。统一运行 `hda_mocker_4_v1.5.0.exe --config presets\basf_dirty\config.yaml`。迁移及新版空值规则以 [统一版说明](../docs/HDA_MOCKER_4_RELEASE_1_5_0.md) 为准。
+
 `presets/` 下的每个子目录就是一套独立的场景测试数据集（preset），自带
 `config.yaml`、`hda/`、`da/` 和运行期 `runtime/`。每套数据集用于验证一类
 客户端行为或业务场景，彼此独立，单独启停。

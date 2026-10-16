@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -58,8 +59,28 @@ func (p *Playback) Current(name string) (*Sample, bool) {
 	return &x, ok
 }
 func (p *Playback) Start() error {
+	p.mu.RLock()
+	started := p.started
+	p.mu.RUnlock()
+	if started {
+		return nil
+	}
 	if len(p.files) == 0 {
 		return nil
+	}
+	if err := p.validatePlaybackClock(time.Now().UTC()); err != nil {
+		return err
+	}
+	for _, f := range p.files {
+		if f.Timestamped {
+			if len(p.files) != 1 {
+				return fmt.Errorf("timestamp playback currently requires one DA file per preset")
+			}
+			return p.startTimestamped(f)
+		}
+	}
+	if err := p.initializeFixed(); err != nil {
+		return err
 	}
 	p.mu.Lock()
 	if p.started {
@@ -139,10 +160,6 @@ func (p *Playback) loop() {
 }
 func (p *Playback) round(files []FileInfo) {
 	timeNow := time.Now().UTC()
-	expectedTags := 0
-	for _, file := range files {
-		expectedTags += len(file.Tags)
-	}
 	vals := map[string]any{}
 	next := map[string]int64{}
 	shas := map[string]string{}
@@ -168,19 +185,7 @@ func (p *Playback) round(files []FileInfo) {
 			continue
 		}
 		for _, n := range f.Tags {
-			daStatus := any(int64(0))
-			if col, ok := f.StatusCols[n]; ok {
-				daStatus = v[col]
-			}
-			hdaValue := v[n]
-			if col, ok := f.HDAValueCols[n]; ok {
-				hdaValue = v[col]
-			}
-			hdaStatus := any(int64(0))
-			if col, ok := f.HDAStatusCols[n]; ok {
-				hdaStatus = v[col]
-			}
-			vals[n] = replayValue{DAValue: v[n], DAStatus: daStatus, HDAValue: hdaValue, HDAStatus: hdaStatus}
+			vals[n] = replayCell(f, v, n)
 		}
 		next[f.Path] = row + 1
 		shas[f.Path] = sha
@@ -192,29 +197,15 @@ func (p *Playback) round(files []FileInfo) {
 	for path, row := range next {
 		updates = append(updates, playbackUpdate{Path: path, SHA: shas[path], Next: row})
 	}
-	written, e := p.store.writeLiveAndState(vals, timeNow, p.batch, updates)
+	e := p.commitObservation(vals, timeNow, updates)
 	if e != nil {
 		log.Printf("playback transaction failed (batch=%d): %v", p.batch, e)
 		for _, f := range files {
-			p.setFileError(f, e)
+			p.failTimestampPlayback(f, e)
 		}
 		return
 	}
-	p.batch++
 	p.mu.Lock()
-	p.lastCommit = timeNow
-	p.lastDATags = len(written)
-	p.lastHDATags = len(written)
-	p.lastExpectedTags = expectedTags
-	notify := p.notify
-	for _, x := range written {
-		cell := vals[x.Name].(replayValue)
-		v, q := normalizeValue(cell.DAValue)
-		if v != nil {
-			q = normalizeUAStatus(cell.DAStatus)
-		}
-		p.current[x.Name] = Sample{TagID: x.TagID, Name: x.Name, TS: x.TS, Value: v, Quality: q, Origin: "live", BatchID: x.BatchID}
-	}
 	for _, f := range files {
 		state := p.filesState[f.Path]
 		state.CurrentRow = next[f.Path]
@@ -225,12 +216,7 @@ func (p *Playback) round(files []FileInfo) {
 		p.filesState[f.Path] = state
 	}
 	p.mu.Unlock()
-	if notify != nil {
-		for _, x := range written {
-			notify(x.Name)
-		}
-	}
-	log.Printf("playback committed batch=%d tags=%d timestamp=%s", p.batch-1, len(written), timeNow.Format(time.RFC3339Nano))
+	log.Printf("playback committed batch=%d timestamp=%s", p.batch-1, timeNow.Format(time.RFC3339Nano))
 }
 
 func (p *Playback) setFileError(f FileInfo, err error) {

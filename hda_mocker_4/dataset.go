@@ -24,6 +24,7 @@ type FileInfo struct {
 	HDAStatusCols   map[string]string // DA-only optional <tag>.__hda_status columns
 	Rows            int64
 	Period          time.Duration
+	Timestamped     bool
 }
 
 const (
@@ -71,9 +72,7 @@ func validateParquet(db *sql.DB, path string, hda bool) (FileInfo, error) {
 		}
 		seen[n] = true
 		if n == "Timestamp" {
-			if !hda {
-				return fi, fmt.Errorf("%s: DA must not contain Timestamp", path)
-			}
+			fi.Timestamped = !hda
 			if !strings.Contains(strings.ToUpper(types[i]), "TIMESTAMP") || !strings.Contains(strings.ToUpper(types[i]), "TIME ZONE") {
 				return fi, fmt.Errorf("%s: Timestamp must be timestamp type", path)
 			}
