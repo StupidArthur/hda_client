@@ -1,0 +1,11 @@
+server:
+  endpoint: opc.tcp://0.0.0.0:4840
+  ns: 3
+  namespace: urn:hda:mocker4:ningbo
+  max_page_size: 5000
+playback:
+  files:
+    ningbo_916_da.parquet:
+      period_ms: 5000
+history:
+  retention_days: 0

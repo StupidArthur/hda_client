@@ -6,6 +6,10 @@
 !/presets/*/hda/.gitkeep
 /presets/*/da/*
 !/presets/*/da/.gitkeep
+!/presets/ningbo_916/hda/
+!/presets/ningbo_916/hda/ningbo_916_hda.parquet
+!/presets/ningbo_916/da/
+!/presets/ningbo_916/da/ningbo_916_da.parquet
 /presets/*/runtime/
 !/presets/*/runtime/.gitkeep
 

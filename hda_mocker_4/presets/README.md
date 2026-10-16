@@ -33,6 +33,7 @@ Parquet 载荷不入 Git，仅 `config.yaml` 和目录占位符 `.gitkeep` 受�
 ```powershell
 .\hda_mocker_4.exe --config presets\hda_all\config.yaml
 .\hda_mocker_4.exe --config presets\dynamic_data_all\config.yaml
+.\hda_mocker_4.exe --config presets\ningbo_916\config.yaml
 ```
 
 同一时刻只运行一个场景：各数据集默认都监听 `opc.tcp://0.0.0.0:18980`，
@@ -45,6 +46,7 @@ Parquet 载荷不入 Git，仅 `config.yaml` 和目录占位符 `.gitkeep` 受�
 | `hda_all` | `presets/hda_all` | v1.0 | 76 | 452,161 | 30 秒 | 10,000 | 30,000 ms |
 | `dynamic_data_all` | `presets/dynamic_data_all` | v1.0 | 27 | 260,639 | 60 秒 | 10,000 | 60,000 ms |
 | `qa_v2` | `presets/qa_v2` | v1.0 | 12 | 169,129 | 事件驱动 | — | 无 DA |
+| `ningbo_916` | `presets/ningbo_916` | 宁波 916 | 22 | 现场数据，详见 preset manifest | 5 秒 | 5,000 | 5,000 ms |
 
 ## 公共约定
 
