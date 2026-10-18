@@ -1,0 +1,12 @@
+﻿server:
+  endpoint: opc.tcp://127.0.0.1:18981
+  ns: 3
+  namespace: urn:hda:mocker4:fixture
+diagnostic:
+  listen: 127.0.0.1:18991
+playback:
+  files:
+    warned.parquet:
+      period_ms: 30000
+history:
+  retention_days: 0

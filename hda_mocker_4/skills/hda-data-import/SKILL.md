@@ -11,8 +11,7 @@ HDA Parquet 使用 `Timestamp`、`tag` 和可选 `tag.__status`。DA Parquet 使
 `tag.__hda_status`。辅助列归属于基础位号，不会成为位号。状态值是完整 OPC UA
 StatusCode（UInt32，0..4294967295）。状态列缺失时默认 0（StatusGood）；DA
 `__hda_value` 缺失时使用 `tag`。
-状态单元格为 NULL 会被拒绝；数值单元格为 NULL、NaN 或 Inf 表示无值，返回
-`BadWaitingForInitialData`。
+状态单元格为 NULL 会被拒绝；数值单元格为 NULL、NaN 或 Inf 且未明确标 Bad 时表示无观测，HDA 跳过、DA 保持前值及前质量；明确 Bad 则保留为无值的异常观测。
 
 DA 的 `tag`/`__status` 控制实时发布，`__hda_*` 控制同一轮事务写入的历史点。
 HDA 和 DA 的辅助列可以不同，但基础位号集合必须一致。
@@ -22,7 +21,7 @@ HDA 和 DA 的辅助列可以不同，但基础位号集合必须一致。
 
 ## 目录和文件
 
-每一套数据使用同一个文件名，分别放在：
+每一套数据分别放在以下目录；两侧文件名可以不同：
 
 ```text
 hda/<dataset>.parquet
@@ -37,14 +36,13 @@ HDA 与 DA 不允许出现重复位号；不同数据集之间也不允许出现
 HDA 第一列必须是 `Timestamp`，类型为带 UTC 时区的 timestamp；后续每列是一个位号，
 类型为数值型（服务端当前按 DOUBLE 读取）。时间必须升序、无重复，统一 UTC。
 
-DA 不包含 `Timestamp` 列；基础位号集合和 HDA 必须完全一致，列类型必须是数值型。
-DA 行顺序就是轮播顺序，通常取 HDA 的尾部或指定窗口。DA 行数可以比 HDA 少。
+DA 可不带 Timestamp 按固定 period_ms 播放，或使用单份带 UTC Timestamp 的文件按源时间差播放，每100ms检查。不能混用两种模式。HDA/DA 同时存在时基础位号集合必须一致，也允许纯 HDA 或纯 DA。DA 行数可以比 HDA 少。
 
 HDA 每个值列可带 `tag.__status`；DA 可带 `tag.__status`、`tag.__hda_value` 和
 `tag.__hda_status`。状态列使用完整 OPC UA StatusCode，范围为 0..4294967295。列缺失才使用默认
-0（StatusGood）；状态单元格为 NULL 会被拒绝。DA 的 `tag`/`__status` 用于实时发布，
+0（StatusGood）；但缺少 `.__hda_status` 时继承 DA 的实际观测质量。状态单元格为 NULL 会被拒绝。DA 的 `tag`/`__status` 用于实时发布，
 `__hda_value`/`__hda_status` 用于实时入库，两侧辅助列不要求一致。数值为空、NaN 或 Inf
-时始终作为 BadWaitingForInitialData 返回，即使状态列是 Good。
+且未标 Bad 时不产生观测；需要异常点时必须显式写 Bad。不得把 BASF 对齐空格全部改为 Bad。宁波旧 192/0 只有在来源已明确其业务含义时才映射为 UA 0/2147483648，已经转换的数据不得再次映射。
 
 ## 导入前验证
 

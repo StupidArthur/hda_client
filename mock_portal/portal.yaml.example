@@ -1,0 +1,13 @@
+# Mock 门户配置示例。
+#
+# 复制为 portal.yaml 后按部署环境修改。这里只有监听地址和 preset 根目录：
+# 不要在门户里登记每个 preset 的 IP、诊断地址、Namespace 或播放周期，
+# 这些信息一律以各自 preset 的 config.yaml 为唯一来源。
+
+listen: 0.0.0.0:8080
+presets_dir: G:/cc_demos/hda/hda_mocker_4/presets
+
+# 可选：从 Mock 列表中排除的第一层目录名。
+# 默认排除 demo（空模板，不计入 Mock 总数）。
+# exclude_presets:
+#   - demo

@@ -30,7 +30,7 @@ DA 保留 `.__status`、`.__hda_value`、`.__hda_status`。无 HDA 覆盖列时�
 2. 有值数据无需改。NULL 若表示无观测可保留；若用于模拟异常，补明确 Bad 码。若 DA 为 Bad 而 HDA 应为 Good，显式填 `.__hda_status=0`。
 3. 必须使用新 runtime。非空旧数据库没有 v1.5 语义标记时会被拒绝，不自动删除或迁移历史。
 4. 运行 `hda_mocker_4_v1.5.0.exe --config <preset>/config.yaml`。
-5. 宁波192/0现场约定需确认业务含义后转换，引擎不猜测。
+5. 旧宁波192/0现场约定需确认业务含义后转换，引擎不猜测。当前 bundled preset 已转换为标准 UA 0/2147483648，不要再次映射；详见 [现有 preset 迁移记录](../presets/FORMAT_MIGRATION_1_5_0.md)。
 
 ## BASF 及验证
 

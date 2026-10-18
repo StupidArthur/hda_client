@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #fcfcfd;
+  --foreground: #23252b;
+  --card: #ffffff;
+  --card-foreground: #23252b;
+  --popover: #ffffff;
+  --popover-foreground: #23252b;
+  --primary: #0878ed;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f6f8;
+  --secondary-foreground: #23252b;
+  --muted: #f5f6f8;
+  --muted-foreground: #717680;
+  --accent: #e1eaf7;
+  --accent-foreground: #0a5bb5;
+  --destructive: #be5050;
+  --destructive-foreground: #ffffff;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #0878ed;
+  --sidebar: #f1f2f5;
+  --sidebar-foreground: #23252b;
+  --sidebar-accent: #e1eaf7;
+  --sidebar-border: #e5e7eb;
+  --selection: #e1eaf7;
+  --good: #27835c;
+  --warn: #b27918;
+  --bad: #be5050;
+  --shadow: rgb(30 41 59 / 0.08);
+  --radius: 0.6rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #191a1d;
+    --foreground: #eceef2;
+    --card: #1f2024;
+    --card-foreground: #eceef2;
+    --popover: #222327;
+    --popover-foreground: #eceef2;
+    --primary: #66aaff;
+    --primary-foreground: #102033;
+    --secondary: #27292f;
+    --secondary-foreground: #eceef2;
+    --muted: #27292f;
+    --muted-foreground: #a1a6b0;
+    --accent: #263d5a;
+    --accent-foreground: #cfe2ff;
+    --destructive: #ed9595;
+    --destructive-foreground: #2a1414;
+    --border: #34363d;
+    --input: #34363d;
+    --ring: #66aaff;
+    --sidebar: #222327;
+    --sidebar-foreground: #eceef2;
+    --sidebar-accent: #263d5a;
+    --sidebar-border: #34363d;
+    --selection: #263d5a;
+    --good: #66c99b;
+    --warn: #e9b65c;
+    --bad: #ed9595;
+    --shadow: rgb(0 0 0 / 0.35);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light dark;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--background);
+    color: var(--foreground);
+    font-size: 13px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .mono {
+    font-family: theme("fontFamily.mono");
+    font-size: 11.5px;
+    overflow-wrap: anywhere;
+  }
+}

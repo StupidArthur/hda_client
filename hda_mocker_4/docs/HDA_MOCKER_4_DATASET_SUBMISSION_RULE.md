@@ -2,7 +2,7 @@
 
 **v1.5.0 更新：** [统一版规则](HDA_MOCKER_4_RELEASE_1_5_0.md) 优先于下文旧约定。空且未标 Bad 表示无观测；显式 Bad 可无值；DA 可带 UTC Timestamp；无 HDA 质量覆盖时沿用 DA 质量。迁移须使用新 runtime。
 
-本文对应 `hda_mocker_4 v1.2.1`，供数据集制作方和验收方使用。提交物必须是 Parquet 文件以及对应的播放配置，不接受把 CSV、Excel 或 DuckDB 文件直接放入运行目录。
+本文对应 `hda_mocker_4 v1.5.0`，供数据集制作方和验收方使用。已有 bundled preset 的转换结果见 [格式迁移记录](../presets/FORMAT_MIGRATION_1_5_0.md)。提交物必须是 Parquet 文件以及对应的播放配置，不接受把 CSV、Excel 或 DuckDB 文件直接放入运行目录。
 
 ## 1. 提交目录
 
@@ -29,7 +29,7 @@ dataset_name/
 - 表至少有 1 行、1 个基础位号列。
 - 列名必须非空且在文件内唯一，大小写敏感。
 - 位号名应直接使用 OPC UA 节点期望的完整名称，例如 `AI1303A5.PV`。
-- `Timestamp` 是保留列名，只能用于 HDA。
+- `Timestamp` 是保留列名；HDA 必须使用，DA 可选用作时间轴。
 - 以 `.__status`、`.__hda_value`、`.__hda_status` 结尾的列是辅助列，不是独立位号。
 - 每个辅助列必须存在同名基础位号列。例如有 `AI1303A5.PV.__status` 时，必须同时有 `AI1303A5.PV`。
 - 基础位号值和 `.__hda_value` 必须写成 Parquet `DOUBLE`/float64；不要依赖整数、字符串或 decimal 类型的隐式转换。
@@ -65,16 +65,16 @@ HDA 只允许 `tag` 和可选 `tag.__status`；不得包含 `Timestamp` 以外�
 
 ## 4. DA 文件格式
 
-DA 是无时间列的宽表，每行表示一次轮播状态，按原始行顺序循环播放：
+DA 是宽表，可无时间列按固定周期轮播，也可带 UTC Timestamp 按源时间差循环播放：
 
 | 列 | 类型 | 必填 | 整列缺失时的行为 |
 |---|---|---|---|
 | `tag` | float64 | 是 | 无默认值 |
 | `tag.__status` | 整数 0～4294967295 | 否 | DA StatusCode 使用 0（StatusGood） |
 | `tag.__hda_value` | float64 | 否 | 实时入库值使用 `tag` |
-| `tag.__hda_status` | 整数 0～4294967295 | 否 | 实时入库 StatusCode 使用 0（StatusGood） |
+| `tag.__hda_status` | 整数 0～4294967295 | 否 | 实时入库继承当前行 DA StatusCode |
 
-DA 文件不得包含 `Timestamp`。轮播时间由服务在每轮执行时生成，不从数据集读取。
+无 Timestamp 的 DA 由 period_ms 决定播放节奏。带 Timestamp 的 DA 要求 UTC 微秒时间严格递增，按相对时间差映射到实时播放起点，每100ms检查；每个 preset 仅允许一份时间轴 DA，不能与无时间列 DA 混用。其配置仍需填写 period_ms，建议100。
 
 完整示例：
 
@@ -89,20 +89,21 @@ tag    tag.__status  tag.__hda_value  tag.__hda_status
 注意“缺列”和“空单元格”语义不同：
 
 - 整个 `tag.__hda_value` 列不存在：每行都回退使用 `tag`。
-- `tag.__hda_value` 列存在但某行为空：该行 HDA 明确表示无 Value，不回退到 `tag`。
-- 任一 status 整列不存在：使用默认 0（StatusGood）。
+- `tag.__hda_value` 列存在但某行为空：不回退到 `tag`；仅在 HDA 对应质量明确为 Bad 时写入空值异常点，否则不追加。
+- `tag.__status` 整列不存在：默认 0（StatusGood）；`tag.__hda_status` 整列不存在：继承当前行 DA 质量。
 - status 列存在但某个单元格为空：属于无效数据集，拒绝启动，不按默认值处理。
 
 ## 5. 异常值规则
 
-基础值或 HDA 覆盖值允许使用 NULL、NaN、`+Inf`、`-Inf` 表达“该时刻没有有效 Value”。服务会将其转换为：
+基础值或 HDA 覆盖值允许使用 NULL、NaN、`+Inf`、`-Inf` 表达无有效数值。是否产生观测由对应质量决定：
 
 ```text
-Value：不返回/不存储有效数值
-Status：BadWaitingForInitialData
+空值 + 非 Bad（含缺列默认 Good）：无观测，HDA 跳过，DA 保持前值及前质量
+空值 + 明确 Bad：真实异常观测，HDA 保存空值和指定 Bad，DA 更新为空值和指定 Bad
+有限值（包括0）+ 任意有效质量：真实观测，保存值和对应质量
 ```
 
-该处理优先于同一行的 status。例如 `tag=NULL` 且 `tag.__status=0`，DA 仍然是无 Value、BadWaitingForInitialData。
+例如 `tag=NULL` 且 `tag.__status=0` 是无观测，不自动改为 Bad。若要保留旧“空值异常”行为，应明确写 `2150760448`（BadWaitingForInitialData）或符合业务含义的其他 Bad。未标 Bad 的空值不会覆盖 DA 之前的异常状态。
 
 如果目的是模拟“值仍然可见，但质量异常”，不要把 value 写空；应填写正常数值，并在 `tag.__status` 中写入完整 Bad StatusCode，例如 `2150694912`（BadNoCommunication）。
 
@@ -160,7 +161,7 @@ history:
 ```
 
 - 文件名必须精确匹配，包括扩展名和大小写。
-- `period_ms` 必须大于 0，代表该文件每播放一行的目标间隔。
+- `period_ms` 必须大于 0；固定周期文件按此间隔播放，时间轴文件按 Timestamp 时间差播放，仍每100ms检查。
 - 仅提交 HDA 时，`playback.files` 使用空映射 `{}`。
 - `max_page_size` 必须大于 0。
 - `retention_days` 必须大于等于 0；0 表示实时 HDA 不自动清理。
@@ -181,12 +182,12 @@ history:
 
 - [ ] 所有输入均为可读取的 Parquet，且至少有一行。
 - [ ] HDA 第一列是带 UTC 时区的微秒 Timestamp，非空并严格递增。
-- [ ] DA 中不存在 Timestamp。
+- [ ] DA 已明确固定周期或时间轴模式；时间轴仅一份文件、UTC微秒严格递增，不与固定模式混用。
 - [ ] 基础值和 `.__hda_value` 是 float64。
 - [ ] status 是整数、无 NULL、全部在 0～4294967295。
 - [ ] 所有辅助列都有对应基础位号。
 - [ ] HDA 未使用 `.__hda_value` 或 `.__hda_status`。
-- [ ] NULL/NaN/Inf 的使用是有意设计，并接受其结果为无 Value、BadWaitingForInitialData。
+- [ ] NULL/NaN/Inf 已区分无观测和显式 Bad 异常；旧故障空值已补明确 Bad，普通对齐空格保持无观测。
 - [ ] HDA 内部、DA 内部均无跨文件重复位号。
 - [ ] 同时提交 HDA 和 DA 时，二者基础位号集合完全一致。
 - [ ] 每份 DA 文件都配置了准确的 `period_ms`，且没有多余配置项。
