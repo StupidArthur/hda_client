@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const version = "v1.5.0"
+const version = "v1.5.2"
 
 func main() {
 	os.Exit(run())

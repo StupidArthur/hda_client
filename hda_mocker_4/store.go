@@ -139,6 +139,7 @@ func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progre
 	defer s.writeMu.Unlock()
 	total := ImportResult{}
 	for _, f := range files {
+		fileStarted := time.Now()
 		if err := ctx.Err(); err != nil {
 			return total, err
 		}
@@ -232,27 +233,55 @@ func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progre
 			parts = append(parts, fmt.Sprintf("SELECT ?::BIGINT AS tag_id, epoch_us(Timestamp)::BIGINT AS ts, CASE WHEN isfinite(%s) THEN %s ELSE NULL END AS value, %s AS quality, 'import' AS origin, ?::BIGINT AS batch_id FROM src WHERE isfinite(%s) OR (%s & 2147483648) <> 0", col, col, quality, col, quality))
 			args = append(args, m[name].ID, batch)
 		}
-		q := "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS (" + strings.Join(parts, " UNION ALL ") + ") SELECT count(*) FROM incoming i JOIN samples s ON s.tag_id=i.tag_id AND s.ts=i.ts WHERE NOT ((i.value IS NULL AND s.value IS NULL) OR i.value=s.value) OR i.quality<>s.quality"
-		var conflicts int64
-		if e = tx.QueryRowContext(ctx, q, args...).Scan(&conflicts); e != nil {
-			tx.Rollback()
-			return total, e
+		incomingSQL := "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS (" + strings.Join(parts, " UNION ALL ") + ") "
+		// A new, disjoint tag set cannot overlap existing history. Probe only
+		// those tag IDs first (DuckDB can prune their absent ranges), instead
+		// of expanding incoming rows for two joins against the growing store.
+		ids, idArgs := make([]string, len(f.Tags)), make([]any, len(f.Tags))
+		for i, name := range f.Tags {
+			ids[i], idArgs[i] = "?", m[name].ID
 		}
-		if conflicts > 0 {
-			tx.Rollback()
-			return total, fmt.Errorf("import %s: conflicting samples", f.Path)
-		}
-		insertQ := "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS (" + strings.Join(parts, " UNION ALL ") + ") INSERT INTO samples SELECT i.* FROM incoming i WHERE NOT EXISTS (SELECT 1 FROM samples s WHERE s.tag_id=i.tag_id AND s.ts=i.ts)"
-		if _, e = tx.ExecContext(ctx, insertQ, args...); e != nil {
+		var hasExisting bool
+		if e = tx.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM samples WHERE tag_id IN ("+strings.Join(ids, ",")+"))", idArgs...).Scan(&hasExisting); e != nil {
 			tx.Rollback()
 			return total, e
 		}
 		var observed int64
-		if e = tx.QueryRowContext(ctx, "WITH src AS (SELECT * FROM read_parquet(?)), incoming AS ("+strings.Join(parts, " UNION ALL ")+") SELECT count(*) FROM incoming", args...).Scan(&observed); e != nil {
-			tx.Rollback()
-			return total, e
+		if !hasExisting {
+			// Keep UNIQUE(tag_id,ts), transaction boundaries and every value/
+			// quality expression unchanged. RowsAffected supplies the exact
+			// observation count without a third Parquet/unpivot scan.
+			result, err := tx.ExecContext(ctx, incomingSQL+"INSERT INTO samples SELECT * FROM incoming", args...)
+			if err != nil {
+				tx.Rollback()
+				return total, err
+			}
+			observed, e = result.RowsAffected()
+			if e != nil {
+				tx.Rollback()
+				return total, e
+			}
+		} else {
+			q := incomingSQL + "SELECT count(*) FROM incoming i JOIN samples s ON s.tag_id=i.tag_id AND s.ts=i.ts WHERE NOT ((i.value IS NULL AND s.value IS NULL) OR i.value=s.value) OR i.quality<>s.quality"
+			var conflicts int64
+			if e = tx.QueryRowContext(ctx, q, args...).Scan(&conflicts); e != nil {
+				tx.Rollback()
+				return total, e
+			}
+			if conflicts > 0 {
+				tx.Rollback()
+				return total, fmt.Errorf("import %s: conflicting samples", f.Path)
+			}
+			insertQ := incomingSQL + "INSERT INTO samples SELECT i.* FROM incoming i WHERE NOT EXISTS (SELECT 1 FROM samples s WHERE s.tag_id=i.tag_id AND s.ts=i.ts)"
+			if _, e = tx.ExecContext(ctx, insertQ, args...); e != nil {
+				tx.Rollback()
+				return total, e
+			}
+			if e = tx.QueryRowContext(ctx, incomingSQL+"SELECT count(*) FROM incoming", args...).Scan(&observed); e != nil {
+				tx.Rollback()
+				return total, e
+			}
 		}
-		total.Samples += observed
 		if _, e = tx.Exec("INSERT INTO imports(path,sha256,rows,completed,imported_at) VALUES (?,?,?,?,?) ON CONFLICT(path) DO UPDATE SET sha256=excluded.sha256,rows=excluded.rows,completed=excluded.completed,imported_at=excluded.imported_at", f.Path, sha, f.Rows, true, time.Now().UTC().UnixMicro()); e != nil {
 			tx.Rollback()
 			return total, e
@@ -260,12 +289,13 @@ func (s *Store) importFilesContext(ctx context.Context, files []FileInfo, progre
 		if e = tx.Commit(); e != nil {
 			return total, e
 		}
+		total.Samples += observed
 		total.Files++
 		total.Elapsed = time.Since(started)
 		if progress != nil {
 			progress(total, f)
 		}
-		log.Printf("import complete file=%s samples=%d elapsed=%s", filepath.Base(f.Path), observed, time.Since(started))
+		log.Printf("import complete file=%s samples=%d file_elapsed=%s existing_tags=%t elapsed=%s", filepath.Base(f.Path), observed, time.Since(fileStarted), hasExisting, time.Since(started))
 	}
 	total.Elapsed = time.Since(started)
 	return total, nil

@@ -1,0 +1,13 @@
+server:
+  endpoint: opc.tcp://0.0.0.0:4850
+  ns: 3
+  namespace: urn:hda:mocker4:oom_test
+  max_page_size: 5000
+diagnostic:
+  listen: 0.0.0.0:4851
+playback:
+  files:
+    oom_test.parquet:
+      period_ms: 100
+history:
+  retention_days: 0

@@ -1,0 +1,1945 @@
+{
+  "source": "presets\\basf_dirty\\hda\\basf_dirty.parquet",
+  "source_sha256": "dfaf6bd14c8294c3bd77e7e85527b10285b3cf6ac63dc26e136bc5a9c45a9b4b",
+  "timezone": "UTC",
+  "start_inclusive": "2026-08-01T00:00:00+00:00",
+  "end_exclusive": "2026-10-01T00:00:00+00:00",
+  "tags": 300,
+  "hda_observations": 59191794,
+  "source_cycle_us": 259974156000,
+  "da_loop_us": 86399891000,
+  "quality": "No status columns; finite observations default Good(0); NULL means no observation",
+  "mapping": [
+    {
+      "tag": "oom_test_000",
+      "source_tag": "FI391303",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_001",
+      "source_tag": "PI391303D",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_002",
+      "source_tag": "PIC391303",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_003",
+      "source_tag": "PIC391304",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_004",
+      "source_tag": "PV391303A",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_005",
+      "source_tag": "PV391303B",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_006",
+      "source_tag": "PV391303C",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_007",
+      "source_tag": "PXI391304",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_008",
+      "source_tag": "TI391301",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_009",
+      "source_tag": "TI391307",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_010",
+      "source_tag": "AI390101C01",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_011",
+      "source_tag": "AI390101C02",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_012",
+      "source_tag": "AI390101C03",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_013",
+      "source_tag": "AI390101C04",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_014",
+      "source_tag": "AI390101C05",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_015",
+      "source_tag": "AI390111C01",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_016",
+      "source_tag": "AI390112C01",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_017",
+      "source_tag": "FI391101",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_018",
+      "source_tag": "FIC391205",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_019",
+      "source_tag": "FV391205",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_020",
+      "source_tag": "LI390104",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_021",
+      "source_tag": "PI390103A",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_022",
+      "source_tag": "PI390103B",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_023",
+      "source_tag": "TI391103",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_024",
+      "source_tag": "FI625065",
+      "phase_ms": 0
+    },
+    {
+      "tag": "oom_test_025",
+      "source_tag": "FI391303",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_026",
+      "source_tag": "PI391303D",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_027",
+      "source_tag": "PIC391303",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_028",
+      "source_tag": "PIC391304",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_029",
+      "source_tag": "PV391303A",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_030",
+      "source_tag": "PV391303B",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_031",
+      "source_tag": "PV391303C",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_032",
+      "source_tag": "PXI391304",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_033",
+      "source_tag": "TI391301",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_034",
+      "source_tag": "TI391307",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_035",
+      "source_tag": "AI390101C01",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_036",
+      "source_tag": "AI390101C02",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_037",
+      "source_tag": "AI390101C03",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_038",
+      "source_tag": "AI390101C04",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_039",
+      "source_tag": "AI390101C05",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_040",
+      "source_tag": "AI390111C01",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_041",
+      "source_tag": "AI390112C01",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_042",
+      "source_tag": "FI391101",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_043",
+      "source_tag": "FIC391205",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_044",
+      "source_tag": "FV391205",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_045",
+      "source_tag": "LI390104",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_046",
+      "source_tag": "PI390103A",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_047",
+      "source_tag": "PI390103B",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_048",
+      "source_tag": "TI391103",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_049",
+      "source_tag": "FI625065",
+      "phase_ms": 197
+    },
+    {
+      "tag": "oom_test_050",
+      "source_tag": "FI391303",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_051",
+      "source_tag": "PI391303D",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_052",
+      "source_tag": "PIC391303",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_053",
+      "source_tag": "PIC391304",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_054",
+      "source_tag": "PV391303A",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_055",
+      "source_tag": "PV391303B",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_056",
+      "source_tag": "PV391303C",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_057",
+      "source_tag": "PXI391304",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_058",
+      "source_tag": "TI391301",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_059",
+      "source_tag": "TI391307",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_060",
+      "source_tag": "AI390101C01",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_061",
+      "source_tag": "AI390101C02",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_062",
+      "source_tag": "AI390101C03",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_063",
+      "source_tag": "AI390101C04",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_064",
+      "source_tag": "AI390101C05",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_065",
+      "source_tag": "AI390111C01",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_066",
+      "source_tag": "AI390112C01",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_067",
+      "source_tag": "FI391101",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_068",
+      "source_tag": "FIC391205",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_069",
+      "source_tag": "FV391205",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_070",
+      "source_tag": "LI390104",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_071",
+      "source_tag": "PI390103A",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_072",
+      "source_tag": "PI390103B",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_073",
+      "source_tag": "TI391103",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_074",
+      "source_tag": "FI625065",
+      "phase_ms": 394
+    },
+    {
+      "tag": "oom_test_075",
+      "source_tag": "FI391303",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_076",
+      "source_tag": "PI391303D",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_077",
+      "source_tag": "PIC391303",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_078",
+      "source_tag": "PIC391304",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_079",
+      "source_tag": "PV391303A",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_080",
+      "source_tag": "PV391303B",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_081",
+      "source_tag": "PV391303C",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_082",
+      "source_tag": "PXI391304",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_083",
+      "source_tag": "TI391301",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_084",
+      "source_tag": "TI391307",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_085",
+      "source_tag": "AI390101C01",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_086",
+      "source_tag": "AI390101C02",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_087",
+      "source_tag": "AI390101C03",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_088",
+      "source_tag": "AI390101C04",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_089",
+      "source_tag": "AI390101C05",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_090",
+      "source_tag": "AI390111C01",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_091",
+      "source_tag": "AI390112C01",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_092",
+      "source_tag": "FI391101",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_093",
+      "source_tag": "FIC391205",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_094",
+      "source_tag": "FV391205",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_095",
+      "source_tag": "LI390104",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_096",
+      "source_tag": "PI390103A",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_097",
+      "source_tag": "PI390103B",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_098",
+      "source_tag": "TI391103",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_099",
+      "source_tag": "FI625065",
+      "phase_ms": 591
+    },
+    {
+      "tag": "oom_test_100",
+      "source_tag": "FI391303",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_101",
+      "source_tag": "PI391303D",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_102",
+      "source_tag": "PIC391303",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_103",
+      "source_tag": "PIC391304",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_104",
+      "source_tag": "PV391303A",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_105",
+      "source_tag": "PV391303B",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_106",
+      "source_tag": "PV391303C",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_107",
+      "source_tag": "PXI391304",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_108",
+      "source_tag": "TI391301",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_109",
+      "source_tag": "TI391307",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_110",
+      "source_tag": "AI390101C01",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_111",
+      "source_tag": "AI390101C02",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_112",
+      "source_tag": "AI390101C03",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_113",
+      "source_tag": "AI390101C04",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_114",
+      "source_tag": "AI390101C05",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_115",
+      "source_tag": "AI390111C01",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_116",
+      "source_tag": "AI390112C01",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_117",
+      "source_tag": "FI391101",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_118",
+      "source_tag": "FIC391205",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_119",
+      "source_tag": "FV391205",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_120",
+      "source_tag": "LI390104",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_121",
+      "source_tag": "PI390103A",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_122",
+      "source_tag": "PI390103B",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_123",
+      "source_tag": "TI391103",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_124",
+      "source_tag": "FI625065",
+      "phase_ms": 788
+    },
+    {
+      "tag": "oom_test_125",
+      "source_tag": "FI391303",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_126",
+      "source_tag": "PI391303D",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_127",
+      "source_tag": "PIC391303",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_128",
+      "source_tag": "PIC391304",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_129",
+      "source_tag": "PV391303A",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_130",
+      "source_tag": "PV391303B",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_131",
+      "source_tag": "PV391303C",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_132",
+      "source_tag": "PXI391304",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_133",
+      "source_tag": "TI391301",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_134",
+      "source_tag": "TI391307",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_135",
+      "source_tag": "AI390101C01",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_136",
+      "source_tag": "AI390101C02",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_137",
+      "source_tag": "AI390101C03",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_138",
+      "source_tag": "AI390101C04",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_139",
+      "source_tag": "AI390101C05",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_140",
+      "source_tag": "AI390111C01",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_141",
+      "source_tag": "AI390112C01",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_142",
+      "source_tag": "FI391101",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_143",
+      "source_tag": "FIC391205",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_144",
+      "source_tag": "FV391205",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_145",
+      "source_tag": "LI390104",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_146",
+      "source_tag": "PI390103A",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_147",
+      "source_tag": "PI390103B",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_148",
+      "source_tag": "TI391103",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_149",
+      "source_tag": "FI625065",
+      "phase_ms": 985
+    },
+    {
+      "tag": "oom_test_150",
+      "source_tag": "FI391303",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_151",
+      "source_tag": "PI391303D",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_152",
+      "source_tag": "PIC391303",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_153",
+      "source_tag": "PIC391304",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_154",
+      "source_tag": "PV391303A",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_155",
+      "source_tag": "PV391303B",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_156",
+      "source_tag": "PV391303C",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_157",
+      "source_tag": "PXI391304",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_158",
+      "source_tag": "TI391301",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_159",
+      "source_tag": "TI391307",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_160",
+      "source_tag": "AI390101C01",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_161",
+      "source_tag": "AI390101C02",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_162",
+      "source_tag": "AI390101C03",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_163",
+      "source_tag": "AI390101C04",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_164",
+      "source_tag": "AI390101C05",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_165",
+      "source_tag": "AI390111C01",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_166",
+      "source_tag": "AI390112C01",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_167",
+      "source_tag": "FI391101",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_168",
+      "source_tag": "FIC391205",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_169",
+      "source_tag": "FV391205",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_170",
+      "source_tag": "LI390104",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_171",
+      "source_tag": "PI390103A",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_172",
+      "source_tag": "PI390103B",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_173",
+      "source_tag": "TI391103",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_174",
+      "source_tag": "FI625065",
+      "phase_ms": 1182
+    },
+    {
+      "tag": "oom_test_175",
+      "source_tag": "FI391303",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_176",
+      "source_tag": "PI391303D",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_177",
+      "source_tag": "PIC391303",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_178",
+      "source_tag": "PIC391304",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_179",
+      "source_tag": "PV391303A",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_180",
+      "source_tag": "PV391303B",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_181",
+      "source_tag": "PV391303C",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_182",
+      "source_tag": "PXI391304",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_183",
+      "source_tag": "TI391301",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_184",
+      "source_tag": "TI391307",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_185",
+      "source_tag": "AI390101C01",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_186",
+      "source_tag": "AI390101C02",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_187",
+      "source_tag": "AI390101C03",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_188",
+      "source_tag": "AI390101C04",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_189",
+      "source_tag": "AI390101C05",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_190",
+      "source_tag": "AI390111C01",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_191",
+      "source_tag": "AI390112C01",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_192",
+      "source_tag": "FI391101",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_193",
+      "source_tag": "FIC391205",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_194",
+      "source_tag": "FV391205",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_195",
+      "source_tag": "LI390104",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_196",
+      "source_tag": "PI390103A",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_197",
+      "source_tag": "PI390103B",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_198",
+      "source_tag": "TI391103",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_199",
+      "source_tag": "FI625065",
+      "phase_ms": 1379
+    },
+    {
+      "tag": "oom_test_200",
+      "source_tag": "FI391303",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_201",
+      "source_tag": "PI391303D",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_202",
+      "source_tag": "PIC391303",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_203",
+      "source_tag": "PIC391304",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_204",
+      "source_tag": "PV391303A",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_205",
+      "source_tag": "PV391303B",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_206",
+      "source_tag": "PV391303C",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_207",
+      "source_tag": "PXI391304",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_208",
+      "source_tag": "TI391301",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_209",
+      "source_tag": "TI391307",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_210",
+      "source_tag": "AI390101C01",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_211",
+      "source_tag": "AI390101C02",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_212",
+      "source_tag": "AI390101C03",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_213",
+      "source_tag": "AI390101C04",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_214",
+      "source_tag": "AI390101C05",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_215",
+      "source_tag": "AI390111C01",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_216",
+      "source_tag": "AI390112C01",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_217",
+      "source_tag": "FI391101",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_218",
+      "source_tag": "FIC391205",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_219",
+      "source_tag": "FV391205",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_220",
+      "source_tag": "LI390104",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_221",
+      "source_tag": "PI390103A",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_222",
+      "source_tag": "PI390103B",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_223",
+      "source_tag": "TI391103",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_224",
+      "source_tag": "FI625065",
+      "phase_ms": 1576
+    },
+    {
+      "tag": "oom_test_225",
+      "source_tag": "FI391303",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_226",
+      "source_tag": "PI391303D",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_227",
+      "source_tag": "PIC391303",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_228",
+      "source_tag": "PIC391304",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_229",
+      "source_tag": "PV391303A",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_230",
+      "source_tag": "PV391303B",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_231",
+      "source_tag": "PV391303C",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_232",
+      "source_tag": "PXI391304",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_233",
+      "source_tag": "TI391301",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_234",
+      "source_tag": "TI391307",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_235",
+      "source_tag": "AI390101C01",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_236",
+      "source_tag": "AI390101C02",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_237",
+      "source_tag": "AI390101C03",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_238",
+      "source_tag": "AI390101C04",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_239",
+      "source_tag": "AI390101C05",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_240",
+      "source_tag": "AI390111C01",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_241",
+      "source_tag": "AI390112C01",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_242",
+      "source_tag": "FI391101",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_243",
+      "source_tag": "FIC391205",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_244",
+      "source_tag": "FV391205",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_245",
+      "source_tag": "LI390104",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_246",
+      "source_tag": "PI390103A",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_247",
+      "source_tag": "PI390103B",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_248",
+      "source_tag": "TI391103",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_249",
+      "source_tag": "FI625065",
+      "phase_ms": 1773
+    },
+    {
+      "tag": "oom_test_250",
+      "source_tag": "FI391303",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_251",
+      "source_tag": "PI391303D",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_252",
+      "source_tag": "PIC391303",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_253",
+      "source_tag": "PIC391304",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_254",
+      "source_tag": "PV391303A",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_255",
+      "source_tag": "PV391303B",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_256",
+      "source_tag": "PV391303C",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_257",
+      "source_tag": "PXI391304",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_258",
+      "source_tag": "TI391301",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_259",
+      "source_tag": "TI391307",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_260",
+      "source_tag": "AI390101C01",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_261",
+      "source_tag": "AI390101C02",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_262",
+      "source_tag": "AI390101C03",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_263",
+      "source_tag": "AI390101C04",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_264",
+      "source_tag": "AI390101C05",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_265",
+      "source_tag": "AI390111C01",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_266",
+      "source_tag": "AI390112C01",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_267",
+      "source_tag": "FI391101",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_268",
+      "source_tag": "FIC391205",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_269",
+      "source_tag": "FV391205",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_270",
+      "source_tag": "LI390104",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_271",
+      "source_tag": "PI390103A",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_272",
+      "source_tag": "PI390103B",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_273",
+      "source_tag": "TI391103",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_274",
+      "source_tag": "FI625065",
+      "phase_ms": 1970
+    },
+    {
+      "tag": "oom_test_275",
+      "source_tag": "FI391303",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_276",
+      "source_tag": "PI391303D",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_277",
+      "source_tag": "PIC391303",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_278",
+      "source_tag": "PIC391304",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_279",
+      "source_tag": "PV391303A",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_280",
+      "source_tag": "PV391303B",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_281",
+      "source_tag": "PV391303C",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_282",
+      "source_tag": "PXI391304",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_283",
+      "source_tag": "TI391301",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_284",
+      "source_tag": "TI391307",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_285",
+      "source_tag": "AI390101C01",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_286",
+      "source_tag": "AI390101C02",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_287",
+      "source_tag": "AI390101C03",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_288",
+      "source_tag": "AI390101C04",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_289",
+      "source_tag": "AI390101C05",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_290",
+      "source_tag": "AI390111C01",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_291",
+      "source_tag": "AI390112C01",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_292",
+      "source_tag": "FI391101",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_293",
+      "source_tag": "FIC391205",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_294",
+      "source_tag": "FV391205",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_295",
+      "source_tag": "LI390104",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_296",
+      "source_tag": "PI390103A",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_297",
+      "source_tag": "PI390103B",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_298",
+      "source_tag": "TI391103",
+      "phase_ms": 2167
+    },
+    {
+      "tag": "oom_test_299",
+      "source_tag": "FI625065",
+      "phase_ms": 2167
+    }
+  ],
+  "files": [
+    {
+      "file": "hda\\oom_test_00.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_000": 926768,
+        "oom_test_001": 401101,
+        "oom_test_002": 392570,
+        "oom_test_003": 151464,
+        "oom_test_004": 52419,
+        "oom_test_005": 1684,
+        "oom_test_006": 7464,
+        "oom_test_007": 238687,
+        "oom_test_008": 3654,
+        "oom_test_009": 13167,
+        "oom_test_010": 14520,
+        "oom_test_011": 6964,
+        "oom_test_012": 14151,
+        "oom_test_013": 8742,
+        "oom_test_014": 203,
+        "oom_test_015": 11560,
+        "oom_test_016": 11539,
+        "oom_test_017": 830461,
+        "oom_test_018": 767719,
+        "oom_test_019": 308,
+        "oom_test_020": 108978,
+        "oom_test_021": 11633,
+        "oom_test_022": 12096,
+        "oom_test_023": 1135,
+        "oom_test_024": 943661
+      },
+      "first_us": 1785542403404000,
+      "last_us": 1790812798209000,
+      "sha256": "4365a27fd9a2974eac1871151552adeeec71bb40a4281c7ea05405e20038b4f6"
+    },
+    {
+      "file": "hda\\oom_test_01.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_025": 926768,
+        "oom_test_026": 401101,
+        "oom_test_027": 392570,
+        "oom_test_028": 151464,
+        "oom_test_029": 52419,
+        "oom_test_030": 1684,
+        "oom_test_031": 7464,
+        "oom_test_032": 238687,
+        "oom_test_033": 3654,
+        "oom_test_034": 13167,
+        "oom_test_035": 14520,
+        "oom_test_036": 6964,
+        "oom_test_037": 14151,
+        "oom_test_038": 8742,
+        "oom_test_039": 203,
+        "oom_test_040": 11560,
+        "oom_test_041": 11539,
+        "oom_test_042": 830461,
+        "oom_test_043": 767719,
+        "oom_test_044": 308,
+        "oom_test_045": 108978,
+        "oom_test_046": 11633,
+        "oom_test_047": 12096,
+        "oom_test_048": 1135,
+        "oom_test_049": 943661
+      },
+      "first_us": 1785542403601000,
+      "last_us": 1790812798406000,
+      "sha256": "1dcf3b8aa84b6a9d98a14e2dfd6749fed15039e8bed67c0d0261acea03aae0ba"
+    },
+    {
+      "file": "hda\\oom_test_02.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_050": 926768,
+        "oom_test_051": 401101,
+        "oom_test_052": 392570,
+        "oom_test_053": 151464,
+        "oom_test_054": 52419,
+        "oom_test_055": 1684,
+        "oom_test_056": 7464,
+        "oom_test_057": 238687,
+        "oom_test_058": 3654,
+        "oom_test_059": 13167,
+        "oom_test_060": 14520,
+        "oom_test_061": 6964,
+        "oom_test_062": 14151,
+        "oom_test_063": 8742,
+        "oom_test_064": 203,
+        "oom_test_065": 11560,
+        "oom_test_066": 11539,
+        "oom_test_067": 830461,
+        "oom_test_068": 767719,
+        "oom_test_069": 308,
+        "oom_test_070": 108978,
+        "oom_test_071": 11633,
+        "oom_test_072": 12096,
+        "oom_test_073": 1135,
+        "oom_test_074": 943661
+      },
+      "first_us": 1785542403798000,
+      "last_us": 1790812798603000,
+      "sha256": "c3878a18eef728e52632bef7c03017d29d46eab45eda3944b2dda51730b34bf5"
+    },
+    {
+      "file": "hda\\oom_test_03.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_075": 926768,
+        "oom_test_076": 401101,
+        "oom_test_077": 392570,
+        "oom_test_078": 151464,
+        "oom_test_079": 52419,
+        "oom_test_080": 1684,
+        "oom_test_081": 7464,
+        "oom_test_082": 238687,
+        "oom_test_083": 3654,
+        "oom_test_084": 13167,
+        "oom_test_085": 14520,
+        "oom_test_086": 6964,
+        "oom_test_087": 14151,
+        "oom_test_088": 8742,
+        "oom_test_089": 203,
+        "oom_test_090": 11560,
+        "oom_test_091": 11539,
+        "oom_test_092": 830461,
+        "oom_test_093": 767719,
+        "oom_test_094": 308,
+        "oom_test_095": 108978,
+        "oom_test_096": 11633,
+        "oom_test_097": 12096,
+        "oom_test_098": 1135,
+        "oom_test_099": 943661
+      },
+      "first_us": 1785542403995000,
+      "last_us": 1790812798800000,
+      "sha256": "56818ffd342a5e220f21b483e2304a04d9fddfc6a3dfada4272d92e99a2ee0b0"
+    },
+    {
+      "file": "hda\\oom_test_04.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_100": 926768,
+        "oom_test_101": 401101,
+        "oom_test_102": 392570,
+        "oom_test_103": 151464,
+        "oom_test_104": 52419,
+        "oom_test_105": 1684,
+        "oom_test_106": 7464,
+        "oom_test_107": 238687,
+        "oom_test_108": 3654,
+        "oom_test_109": 13167,
+        "oom_test_110": 14520,
+        "oom_test_111": 6964,
+        "oom_test_112": 14151,
+        "oom_test_113": 8742,
+        "oom_test_114": 203,
+        "oom_test_115": 11560,
+        "oom_test_116": 11539,
+        "oom_test_117": 830461,
+        "oom_test_118": 767719,
+        "oom_test_119": 308,
+        "oom_test_120": 108978,
+        "oom_test_121": 11633,
+        "oom_test_122": 12096,
+        "oom_test_123": 1135,
+        "oom_test_124": 943661
+      },
+      "first_us": 1785542404192000,
+      "last_us": 1790812798997000,
+      "sha256": "f6149c7c9fd6172ee700e388e3d54a83528759d178de04d88c07efbc52474f01"
+    },
+    {
+      "file": "hda\\oom_test_05.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_125": 926768,
+        "oom_test_126": 401101,
+        "oom_test_127": 392570,
+        "oom_test_128": 151464,
+        "oom_test_129": 52419,
+        "oom_test_130": 1684,
+        "oom_test_131": 7464,
+        "oom_test_132": 238687,
+        "oom_test_133": 3654,
+        "oom_test_134": 13167,
+        "oom_test_135": 14520,
+        "oom_test_136": 6964,
+        "oom_test_137": 14151,
+        "oom_test_138": 8742,
+        "oom_test_139": 203,
+        "oom_test_140": 11560,
+        "oom_test_141": 11539,
+        "oom_test_142": 830461,
+        "oom_test_143": 767719,
+        "oom_test_144": 308,
+        "oom_test_145": 108978,
+        "oom_test_146": 11633,
+        "oom_test_147": 12096,
+        "oom_test_148": 1135,
+        "oom_test_149": 943661
+      },
+      "first_us": 1785542404389000,
+      "last_us": 1790812799194000,
+      "sha256": "26b765163045e423eaab3a25f837f4c94b8bb0132ff306e923acf5aed1254c5d"
+    },
+    {
+      "file": "hda\\oom_test_06.parquet",
+      "rows": 2099218,
+      "observations": 4932648,
+      "per_tag": {
+        "oom_test_150": 926768,
+        "oom_test_151": 401101,
+        "oom_test_152": 392570,
+        "oom_test_153": 151464,
+        "oom_test_154": 52419,
+        "oom_test_155": 1684,
+        "oom_test_156": 7464,
+        "oom_test_157": 238687,
+        "oom_test_158": 3654,
+        "oom_test_159": 13167,
+        "oom_test_160": 14520,
+        "oom_test_161": 6964,
+        "oom_test_162": 14151,
+        "oom_test_163": 8742,
+        "oom_test_164": 203,
+        "oom_test_165": 11560,
+        "oom_test_166": 11539,
+        "oom_test_167": 830461,
+        "oom_test_168": 767719,
+        "oom_test_169": 308,
+        "oom_test_170": 108978,
+        "oom_test_171": 11633,
+        "oom_test_172": 12096,
+        "oom_test_173": 1135,
+        "oom_test_174": 943661
+      },
+      "first_us": 1785542404586000,
+      "last_us": 1790812799391000,
+      "sha256": "ed74d9dea21bb2378ece77e989ff53c8212552b125420d766b26290e74107508"
+    },
+    {
+      "file": "hda\\oom_test_07.parquet",
+      "rows": 2099219,
+      "observations": 4932653,
+      "per_tag": {
+        "oom_test_175": 926769,
+        "oom_test_176": 401101,
+        "oom_test_177": 392570,
+        "oom_test_178": 151465,
+        "oom_test_179": 52419,
+        "oom_test_180": 1684,
+        "oom_test_181": 7464,
+        "oom_test_182": 238688,
+        "oom_test_183": 3654,
+        "oom_test_184": 13167,
+        "oom_test_185": 14520,
+        "oom_test_186": 6964,
+        "oom_test_187": 14151,
+        "oom_test_188": 8742,
+        "oom_test_189": 203,
+        "oom_test_190": 11560,
+        "oom_test_191": 11539,
+        "oom_test_192": 830462,
+        "oom_test_193": 767720,
+        "oom_test_194": 308,
+        "oom_test_195": 108978,
+        "oom_test_196": 11633,
+        "oom_test_197": 12096,
+        "oom_test_198": 1135,
+        "oom_test_199": 943661
+      },
+      "first_us": 1785542400140000,
+      "last_us": 1790812799588000,
+      "sha256": "4bec44c9805356156027d1faa655dc61a96483131df645834cfd1aea0fbe2bb7"
+    },
+    {
+      "file": "hda\\oom_test_08.parquet",
+      "rows": 2099219,
+      "observations": 4932653,
+      "per_tag": {
+        "oom_test_200": 926769,
+        "oom_test_201": 401101,
+        "oom_test_202": 392570,
+        "oom_test_203": 151465,
+        "oom_test_204": 52419,
+        "oom_test_205": 1684,
+        "oom_test_206": 7464,
+        "oom_test_207": 238688,
+        "oom_test_208": 3654,
+        "oom_test_209": 13167,
+        "oom_test_210": 14520,
+        "oom_test_211": 6964,
+        "oom_test_212": 14151,
+        "oom_test_213": 8742,
+        "oom_test_214": 203,
+        "oom_test_215": 11560,
+        "oom_test_216": 11539,
+        "oom_test_217": 830462,
+        "oom_test_218": 767720,
+        "oom_test_219": 308,
+        "oom_test_220": 108978,
+        "oom_test_221": 11633,
+        "oom_test_222": 12096,
+        "oom_test_223": 1135,
+        "oom_test_224": 943661
+      },
+      "first_us": 1785542400337000,
+      "last_us": 1790812799785000,
+      "sha256": "55baaa710153e246b24b8e50f7b3db713e5caaf32bbdaad64eff32a9d0feef43"
+    },
+    {
+      "file": "hda\\oom_test_09.parquet",
+      "rows": 2099220,
+      "observations": 4932654,
+      "per_tag": {
+        "oom_test_225": 926769,
+        "oom_test_226": 401101,
+        "oom_test_227": 392570,
+        "oom_test_228": 151465,
+        "oom_test_229": 52419,
+        "oom_test_230": 1684,
+        "oom_test_231": 7464,
+        "oom_test_232": 238688,
+        "oom_test_233": 3654,
+        "oom_test_234": 13167,
+        "oom_test_235": 14520,
+        "oom_test_236": 6964,
+        "oom_test_237": 14151,
+        "oom_test_238": 8742,
+        "oom_test_239": 203,
+        "oom_test_240": 11560,
+        "oom_test_241": 11539,
+        "oom_test_242": 830462,
+        "oom_test_243": 767720,
+        "oom_test_244": 308,
+        "oom_test_245": 108978,
+        "oom_test_246": 11633,
+        "oom_test_247": 12096,
+        "oom_test_248": 1135,
+        "oom_test_249": 943662
+      },
+      "first_us": 1785542400192000,
+      "last_us": 1790812799982000,
+      "sha256": "91240cc309714a73a5b8fed8d4d216503b488def7159f64e61b8b71b1d1ca651"
+    },
+    {
+      "file": "hda\\oom_test_10.parquet",
+      "rows": 2099218,
+      "observations": 4932649,
+      "per_tag": {
+        "oom_test_250": 926768,
+        "oom_test_251": 401100,
+        "oom_test_252": 392570,
+        "oom_test_253": 151465,
+        "oom_test_254": 52419,
+        "oom_test_255": 1684,
+        "oom_test_256": 7464,
+        "oom_test_257": 238687,
+        "oom_test_258": 3654,
+        "oom_test_259": 13167,
+        "oom_test_260": 14520,
+        "oom_test_261": 6964,
+        "oom_test_262": 14151,
+        "oom_test_263": 8742,
+        "oom_test_264": 203,
+        "oom_test_265": 11560,
+        "oom_test_266": 11539,
+        "oom_test_267": 830461,
+        "oom_test_268": 767720,
+        "oom_test_269": 308,
+        "oom_test_270": 108978,
+        "oom_test_271": 11633,
+        "oom_test_272": 12096,
+        "oom_test_273": 1135,
+        "oom_test_274": 943661
+      },
+      "first_us": 1785542400389000,
+      "last_us": 1790812795163000,
+      "sha256": "aa78496e349206b0389364600dff7803a43555733a644c399eefd450ae4c3df5"
+    },
+    {
+      "file": "hda\\oom_test_11.parquet",
+      "rows": 2099218,
+      "observations": 4932649,
+      "per_tag": {
+        "oom_test_275": 926768,
+        "oom_test_276": 401100,
+        "oom_test_277": 392570,
+        "oom_test_278": 151465,
+        "oom_test_279": 52419,
+        "oom_test_280": 1684,
+        "oom_test_281": 7464,
+        "oom_test_282": 238687,
+        "oom_test_283": 3654,
+        "oom_test_284": 13167,
+        "oom_test_285": 14520,
+        "oom_test_286": 6964,
+        "oom_test_287": 14151,
+        "oom_test_288": 8742,
+        "oom_test_289": 203,
+        "oom_test_290": 11560,
+        "oom_test_291": 11539,
+        "oom_test_292": 830461,
+        "oom_test_293": 767720,
+        "oom_test_294": 308,
+        "oom_test_295": 108978,
+        "oom_test_296": 11633,
+        "oom_test_297": 12096,
+        "oom_test_298": 1135,
+        "oom_test_299": 943661
+      },
+      "first_us": 1785542400586000,
+      "last_us": 1790812795360000,
+      "sha256": "b83fa2b42fcf56a03bac023651599d48719cfa0a1992990e23561d6166cd460a"
+    },
+    {
+      "file": "da/oom_test.parquet",
+      "rows": 413173,
+      "observations": 966611,
+      "sha256": "d1315a1586dcf0f3f2ae0adf679dfc596182a108b9e48175f3703e3cbb21a9b5"
+    }
+  ],
+  "da_duration_us": 86400000000,
+  "hda_anchor": "2026-09-01T00:00:00+00:00",
+  "da_start_inclusive": "2026-09-01T00:00:00+00:00"
+}

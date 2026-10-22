@@ -31,12 +31,19 @@ func (p *Playback) startTimestamped(f FileInfo) error {
 	defer rows.Close()
 	observations := []timedObservation{}
 	last := map[string]Sample{}
+	// Reuse scan buffers and the lookup map. replayCell copies scalar interfaces;
+	// the lookup map and scan slice themselves are never retained by the cache.
+	names, err := rows.Columns()
+	if err != nil {
+		return err
+	}
+	cells := make([]any, len(cols))
+	dest := make([]any, len(cols))
+	for i := range cells {
+		dest[i] = &cells[i]
+	}
+	row := make(map[string]any, len(cols))
 	for rows.Next() {
-		cells := make([]any, len(cols))
-		dest := make([]any, len(cols))
-		for i := range cells {
-			dest[i] = &cells[i]
-		}
 		if err := rows.Scan(dest...); err != nil {
 			return err
 		}
@@ -47,22 +54,28 @@ func (p *Playback) startTimestamped(f FileInfo) error {
 		if len(observations) > 0 && !at.After(observations[len(observations)-1].at) {
 			return fmt.Errorf("DA timestamps must be strictly increasing")
 		}
-		row := map[string]any{}
-		names, err := rows.Columns()
-		if err != nil {
-			return err
-		}
 		for i, name := range names {
 			row[name] = cells[i]
 		}
-		obs := timedObservation{at: at, values: map[string]any{}}
+		obs := timedObservation{at: at}
 		for _, tag := range f.Tags {
 			cell := replayCell(f, row, tag)
-			obs.values[tag] = cell
-			if v, q, present := observation(cell.DAValue, cell.DAStatus); present {
+			v, q, daPresent := observation(cell.DAValue, cell.DAStatus)
+			_, _, hdaPresent := observation(cell.HDAValue, cell.HDAStatus)
+			// Empty on both sides has no DA or HDA effect. Keep explicit Bad,
+			// zero, negative and HDA-only overrides, even when DA is absent.
+			if daPresent || hdaPresent {
+				if obs.values == nil {
+					obs.values = make(map[string]any)
+				}
+				obs.values[tag] = cell
+			}
+			if daPresent {
 				last[tag] = Sample{Name: tag, Value: v, Quality: q, Origin: "replay"}
 			}
 		}
+		// Keep even fully empty rows: first/last anchors, row diagnostics and
+		// the 100ms loop boundary must not change when the cache is sparse.
 		observations = append(observations, obs)
 	}
 	if err := rows.Err(); err != nil {
