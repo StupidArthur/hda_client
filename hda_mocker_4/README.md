@@ -105,3 +105,28 @@ cannot link the bundled DuckDB archive. The resulting `hda_mocker_4.exe` is a
 single 69.5 MB executable whose imported DLLs are Windows system/UCRT DLLs;
 the target machine does not need Go, Python, DuckDB, GCC, or a separate
 database service.
+
+## 数据格式、验证与教学案例（v1.5.2）
+
+- [HDA/DA 格式、入库和播放逻辑](docs/HDA_DA_FORMAT_AND_PLAYBACK_GUIDE.md)：给使用者阅读。
+- [启动后的验证步骤与预期数据](docs/HDA_DA_VERIFICATION.md)：历史明细、DA时间线、实时历史追加、常见问题和记录表。
+- [hda-data-import skill](skills/hda-data-import/SKILL.md)：给Agent准备数据，已对齐v1.5.2。
+- [format_demo典型案例](presets/format_demo/summary.md)：3个位号、8行、15个历史点，15秒一轮，包含空值/Bad/零/负数及Good子码。
+
+标准布局为根目录exe和启动入口、`docs/`、`skills/`、`tools/`，实际配置与数据在 `presets/format_demo/`。根目录运行：
+
+```powershell
+.\hda_mocker_4_v1.5.2.exe --config .\presets\format_demo\config.yaml
+```
+
+小型示例Parquet入Git；exe、runtime、日志和本地大体积现场数据不随本次提交上传。源码克隆后先按上述构建要求生成 `hda_mocker_4_v1.5.2.exe`；如需复现数据，使用 `python tools/build_format_demo_preset.py --verify` 检查，生成过程需要PyArrow。
+
+标准交付包可复现生成，不再靠手工拷贝维护：
+
+```powershell
+python tools/package_format_demo.py
+python tools/package_format_demo.py --verify
+```
+
+默认输出 `build/format_demo_v1.5.2/`；已存在时拒绝覆盖，可指定新 `--output`。包内附最新skill、引用规则、人类说明、运行后验证文档和数据/程序；`package_manifest.json`记录文件SHA256。双击包根目录 `start.cmd` 即可，运行exe不需要Python。
+打包及离线验收不启动Mock服务。演示机器的运行验收按随包文档另做，不把故意出现的Bad质量当作程序故障。

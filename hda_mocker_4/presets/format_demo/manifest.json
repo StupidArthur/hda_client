@@ -1,0 +1,34 @@
+{
+  "dataset": "format_demo",
+  "version": "v1.5.2",
+  "source": "deterministic synthetic teaching example",
+  "timezone": "UTC",
+  "tags": [
+    "sample_temperature",
+    "sample_pressure",
+    "sample_quality"
+  ],
+  "rows_per_file": 8,
+  "file_start": "2026-09-01T00:00:00.125000+00:00",
+  "file_end": "2026-09-01T00:00:15.025000+00:00",
+  "last_observation": "2026-09-01T00:00:10.125000+00:00",
+  "hda_observations": 15,
+  "hda_per_tag": {
+    "sample_temperature": 6,
+    "sample_pressure": 4,
+    "sample_quality": 5
+  },
+  "bad_observations": 2,
+  "da_loop_ms": 15000,
+  "tick_ms": 100,
+  "files": [
+    {
+      "file": "hda/format_demo.parquet",
+      "sha256": "2effb2e82f65347c5befa0f80f588550db986bfb95ddbb95a26b1c873fb2523c"
+    },
+    {
+      "file": "da/format_demo.parquet",
+      "sha256": "2effb2e82f65347c5befa0f80f588550db986bfb95ddbb95a26b1c873fb2523c"
+    }
+  ]
+}

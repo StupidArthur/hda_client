@@ -15,6 +15,10 @@
 !/presets/basf_dirty/hda/basf_dirty.parquet
 !/presets/basf_dirty/da/
 !/presets/basf_dirty/da/basf_dirty.parquet
+!/presets/format_demo/hda/
+!/presets/format_demo/hda/format_demo.parquet
+!/presets/format_demo/da/
+!/presets/format_demo/da/format_demo.parquet
 /presets/*/runtime/
 !/presets/*/runtime/.gitkeep
 
@@ -24,3 +28,6 @@
 
 /build/
 /logs/
+/test_artifacts/
+/presets/*/*.exe
+/presets/*/config.local-*.yaml

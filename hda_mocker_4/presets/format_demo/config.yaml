@@ -1,0 +1,13 @@
+server:
+  endpoint: opc.tcp://127.0.0.1:14860
+  ns: 3
+  namespace: urn:hda:mocker4:format-demo
+  max_page_size: 5000
+diagnostic:
+  listen: 127.0.0.1:14861
+playback:
+  files:
+    format_demo.parquet:
+      period_ms: 100
+history:
+  retention_days: 0
